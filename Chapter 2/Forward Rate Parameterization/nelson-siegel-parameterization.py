@@ -122,7 +122,7 @@ def fit_ns_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True
 
 # ---- New: Plot All Curves in One Figure (like screenshot) ----
 
-def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 15)):
+def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 10)):
     df = pd.read_csv(csv_path)
     maturities = [str(c).strip() for c in df.columns]
     T_years = parse_maturities(maturities)
