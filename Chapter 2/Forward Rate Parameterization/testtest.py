@@ -17,7 +17,9 @@ class NelsonSiegelCurve:
     beta2: float
     tau: float
 
-    def factors(self, T: Union[float, np.ndarray]) -> Union[Tuple[float, float], Tuple[np.ndarray, np.ndarray]]:
+    def factors(
+        self, T: Union[float, np.ndarray]
+    ) -> Union[Tuple[float, float], Tuple[np.ndarray, np.ndarray]]:
         tau = self.tau
         if isinstance(T, Real) and T <= 0:
             return 1, 0
@@ -43,6 +45,7 @@ class NelsonSiegelCurve:
 # ---- Helper: Maturity Parsing ----
 
 def parse_maturities(maturities):
+    # Parse header strings like '3 Mo', '1 Yr', '6M', '10 Yr' etc. to years (float)
     parsed = []
     for m in maturities:
         m = m.strip().replace(' ', '')
@@ -53,12 +56,14 @@ def parse_maturities(maturities):
             number = float(''.join([ch for ch in m if ch.isdigit() or ch == '.']))
             parsed.append(number)
         else:
+            # fallback: try to interpret as years
             parsed.append(float(m))
     return np.array(parsed)
 
 # ---- Fitting Function ----
 
 def nelson_siegel_func(T, beta0, beta1, beta2, tau):
+    # Used for curve_fit
     T = np.array(T)
     tau = max(tau, EPS)
     exp_tt0 = np.exp(-T / tau)
@@ -66,23 +71,25 @@ def nelson_siegel_func(T, beta0, beta1, beta2, tau):
     factor2 = factor1 - exp_tt0
     return beta0 + beta1 * factor1 + beta2 * factor2
 
-# ---- Fit NS Curve to All Curves in a CSV AND SAVE BETAS ----
+# ---- Fit NS Curve to All Curves in a CSV ----
 
-def fit_ns_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True):
+def fit_ns_to_csv(csv_path, country='Country', plot_curves=True):
     print(f"\n=== Fitting Nelson-Siegel: {country} ({csv_path}) ===")
+    # Read CSV
     df = pd.read_csv(csv_path)
+    # Handle comma header or possible whitespace
     maturities = [str(c).strip() for c in df.columns]
     T_years = parse_maturities(maturities)
 
-    betas_list = []
-
     for idx, row in df.iterrows():
         yields = row.values.astype(float)
+        # Initial guess: [long rate, slope, curvature, tau]
         b0_guess = yields[-1]
         b1_guess = yields[0] - yields[-1]
         b2_guess = 0.0
         tau_guess = 2.0
         p0 = [b0_guess, b1_guess, b2_guess, tau_guess]
+        # Bound tau to be >0
         try:
             params, _ = curve_fit(
                 nelson_siegel_func,
@@ -95,7 +102,6 @@ def fit_ns_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True
             print(f"Curve {idx}: Optimization failed, skipping.")
             continue
         beta0, beta1, beta2, tau = params
-        betas_list.append([beta0, beta1, beta2, tau])  # <-- Save params
         print(f"Row {idx+1} params: beta0={beta0:.4f}, beta1={beta1:.4f}, beta2={beta2:.4f}, tau={tau:.4f}")
 
         if plot_curves:
@@ -111,15 +117,6 @@ def fit_ns_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True
             plt.tight_layout()
             plt.show()
 
-    if save_betas and betas_list:
-        betas_df = pd.DataFrame(
-            betas_list,
-            columns=['beta0', 'beta1', 'beta2', 'tau']
-        )
-        betas_csv = f"{country}_nelson_siegel_betas.csv"
-        betas_df.to_csv(betas_csv, index=False)
-        print(f"\nSaved all fitted betas to: {betas_csv}")
-
 # ---- New: Plot All Curves in One Figure (like screenshot) ----
 
 def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 15)):
@@ -132,6 +129,7 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 15)):
         yields = row.values.astype(float)
         plt.plot(T_years, yields, lw=1)
 
+    # Style to match screenshot
     plt.title(country, fontsize=13, weight='bold', color='#183057', pad=10)
     plt.xlabel("Maturity (years)", fontsize=11)
     plt.ylabel("Swap Rate (%)", fontsize=11)
@@ -141,6 +139,7 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 15)):
     plt.tight_layout()
 
     ax = plt.gca()
+    # Colors: blue axis/ticks
     ax.spines['left'].set_color('#183057')
     ax.spines['bottom'].set_color('#183057')
     ax.spines['left'].set_linewidth(1)
@@ -157,11 +156,9 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 15)):
 
 if __name__ == "__main__":
     # Plot all curves as lines on one plot (like your screenshot)
-    plot_all_curves('Chapter 2\Data\GBP-Yield-Curve.csv', country='GBP')
+    plot_all_curves('Chapter 2/Data/GBP-Yield-Curve.csv', country='GBP')
     # plot_all_curves('Chapter 2/Data/SG-Yield-Curve.csv', country='SG')
     # plot_all_curves('Chapter 2/Data/CGB-Yield-Curve.csv', country='CGB')
 
-    # This will fit the NS curve to each yield row and save beta0, beta1, beta2, tau to a CSV
-    fit_ns_to_csv('Chapter 2\Data\GBP-Yield-Curve.csv', country='GBP', plot_curves=False, save_betas=True)
-    # fit_ns_to_csv('Chapter 2/Data/SG-Yield-Curve.csv', country='SG', plot_curves=False, save_betas=True)
-    # fit_ns_to_csv('Chapter 2/Data/CGB-Yield-Curve.csv', country='CGB', plot_curves=False, save_betas=True)
+    # If you want to fit individual curves (row by row), call this:
+    # fit_ns_to_csv('Chapter 2/Data/GBP-Yield-Curve.csv', country='GBP', plot_curves=False)
