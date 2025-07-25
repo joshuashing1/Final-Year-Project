@@ -154,18 +154,23 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 15)):
     plt.show()
 
 # ---- Main Script ----
-
 if __name__ == "__main__":
-    # remove comments to plot yield curves of respective currencies
-    # plot_all_curves(r'Chapter 2\Data\GBP-Yield-Curve.csv', country='GBP')
-    # plot_all_curves(r'Chapter 2\Data\SG-Yield-Curve.csv', country='SGD')
-    # plot_all_curves(r'Chapter 2\Data\USFed-Yield-Curve.csv', country='USD')
-    # plot_all_curves(r'Chapter 2\Data\CGB-Yield-Curve.csv', country='RMB')
-    # plot_all_curves(r'Chapter 2\Data\ECB-Yield-Curve.csv', country='EUR')
+    # List of (CSV path, country code)
+    datasets = [
+        (r'Chapter 2/Data/GBP-Yield-Curve.csv', 'GBP'),
+        (r'Chapter 2/Data/SG-Yield-Curve.csv', 'SGD'),
+        (r'Chapter 2/Data/USFed-Yield-Curve.csv', 'USD'),
+        (r'Chapter 2/Data/CGB-Yield-Curve.csv', 'RMB'),
+        (r'Chapter 2/Data/ECB-Yield-Curve.csv', 'EUR'),
+    ]
+    for csv_path, country in datasets:
+        try:
+            plot_all_curves(csv_path, country=country)
+        except Exception as e:
+            print(f"Error plotting {country}: {e}")
 
-    # fit nelson-siegel curve to each yield row and save parameters to a CSV
-    # fit_ns_to_csv(r'Chapter 2\Data\GBP-Yield-Curve.csv', country='GBP', plot_curves=False, save_betas=True)
-    # fit_ns_to_csv(r'Chapter 2\Data\SG-Yield-Curve.csv', country='SGD', plot_curves=False, save_betas=True)
-    # fit_ns_to_csv(r'Chapter 2\Data\USFed-Yield-Curve.csv', country='USD', plot_curves=False, save_betas=True)
-    fit_ns_to_csv(r'Chapter 2\Data\CGB-Yield-Curve.csv', country='RMB', plot_curves=False, save_betas=True)
-    # fit_ns_to_csv(r'Chapter 2\Data\ECB-Yield-Curve.csv', country='EUR', plot_curves=False, save_betas=True)
+    for csv_path, country in datasets:
+        try:
+            fit_ns_to_csv(csv_path, country=country, plot_curves=False, save_betas=True)
+        except Exception as e:
+            print(f"Error fitting {country}: {e}")
