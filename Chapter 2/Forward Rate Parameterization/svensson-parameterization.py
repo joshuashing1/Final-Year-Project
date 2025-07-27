@@ -1,8 +1,3 @@
-"""
-Implementation of Nelson-Siegel-Svensson yield curve fitting and batch CSV processing.
-Based on: your existing Nelson-Siegel and Svensson code.
-"""
-
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -10,6 +5,7 @@ import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from numbers import Real
 from typing import Union, Tuple
+import os
 
 EPS = np.finfo(float).eps
 
@@ -21,23 +17,23 @@ class NelsonSiegelSvenssonCurve:
     beta1: float
     beta2: float
     beta3: float
-    tau1: float
-    tau2: float
+    lambd1: float  # previously tau1
+    lambd2: float  # previously tau2
 
     def factors(self, T: Union[float, np.ndarray]) -> Union[Tuple[float, float, float], Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-        tau1 = self.tau1
-        tau2 = self.tau2
+        lambd1 = self.lambd1
+        lambd2 = self.lambd2
         if isinstance(T, Real) and T <= 0:
             return 1, 0, 0
         elif isinstance(T, np.ndarray):
             zero_idx = T <= 0
             T = T.copy()
             T[zero_idx] = EPS  # avoid warnings
-        exp_tt1 = np.exp(-T / tau1)
-        exp_tt2 = np.exp(-T / tau2)
-        factor1 = (1 - exp_tt1) / (T / tau1)
+        exp_tt1 = np.exp(-T / lambd1)
+        exp_tt2 = np.exp(-T / lambd2)
+        factor1 = (1 - exp_tt1) / (T / lambd1)
         factor2 = factor1 - exp_tt1
-        factor3 = (1 - exp_tt2) / (T / tau2) - exp_tt2
+        factor3 = (1 - exp_tt2) / (T / lambd2) - exp_tt2
         if isinstance(T, np.ndarray):
             factor1[zero_idx] = 1
             factor2[zero_idx] = 0
@@ -69,41 +65,42 @@ def parse_maturities(maturities):
 
 # --- Svensson Fit Function ---
 
-def svensson_func(T, beta0, beta1, beta2, beta3, tau1, tau2):
+def svensson_func(T, beta0, beta1, beta2, beta3, lambd1, lambd2):
     T = np.array(T)
-    tau1 = max(tau1, EPS)
-    tau2 = max(tau2, EPS)
-    exp_tt1 = np.exp(-T / tau1)
-    exp_tt2 = np.exp(-T / tau2)
-    factor1 = (1 - exp_tt1) / (T / tau1)
+    lambd1 = max(lambd1, EPS)
+    lambd2 = max(lambd2, EPS)
+    exp_tt1 = np.exp(-T / lambd1)
+    exp_tt2 = np.exp(-T / lambd2)
+    factor1 = (1 - exp_tt1) / (T / lambd1)
     factor2 = factor1 - exp_tt1
-    factor3 = (1 - exp_tt2) / (T / tau2) - exp_tt2
+    factor3 = (1 - exp_tt2) / (T / lambd2) - exp_tt2
     return beta0 + beta1 * factor1 + beta2 * factor2 + beta3 * factor3
 
-# --- Fit Svensson Curve to All Curves in a CSV AND SAVE BETAS ---
+# --- Fit Svensson Curve to All Curves in a CSV, SAVE BETAS + RMSE ---
 
-def fit_svensson_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True):
+def fit_svensson_to_csv(csv_path, country='Country', plot_curves=False, save_betas=True):
     print(f"\n=== Fitting Svensson: {country} ({csv_path}) ===")
     df = pd.read_csv(csv_path)
     maturities = [str(c).strip() for c in df.columns]
     T_years = parse_maturities(maturities)
 
     betas_list = []
+    rmse_list = []
 
     for idx, row in df.iterrows():
         yields = row.values.astype(float)
-        # Initial guess: similar logic as NS, but tau2 set distinct
+        # Initial guess: similar logic as NS, but lambd2 set distinct
         b0_guess = yields[-1]
         b1_guess = yields[0] - yields[-1]
         b2_guess = 0.0
         b3_guess = 0.0
-        tau1_guess = 2.0
-        tau2_guess = 0.5  # can tweak if fitting is unstable
-        p0 = [b0_guess, b1_guess, b2_guess, b3_guess, tau1_guess, tau2_guess]
+        lambd1_guess = 2.0
+        lambd2_guess = 0.5  # can tweak if fitting is unstable
+        p0 = [b0_guess, b1_guess, b2_guess, b3_guess, lambd1_guess, lambd2_guess]
         try:
             params, _ = curve_fit(
                 svensson_func,
-                T_years, yields, 
+                T_years, yields,
                 p0=p0,
                 bounds=([-10, -10, -10, -10, 0.01, 0.01], [15, 15, 15, 15, 20, 20]),
                 maxfev=20000
@@ -111,9 +108,15 @@ def fit_svensson_to_csv(csv_path, country='Country', plot_curves=True, save_beta
         except RuntimeError:
             print(f"Curve {idx}: Optimization failed, skipping.")
             continue
-        beta0, beta1, beta2, beta3, tau1, tau2 = params
-        betas_list.append([beta0, beta1, beta2, beta3, tau1, tau2])
-        print(f"Row {idx+1} params: beta0={beta0:.4f}, beta1={beta1:.4f}, beta2={beta2:.4f}, beta3={beta3:.4f}, tau1={tau1:.4f}, tau2={tau2:.4f}")
+        beta0, beta1, beta2, beta3, lambd1, lambd2 = params
+        betas_list.append([beta0, beta1, beta2, beta3, lambd1, lambd2])
+
+        # --- Compute RMSE for this fit ---
+        yfit = svensson_func(T_years, *params)
+        rmse = np.sqrt(np.mean((yields - yfit) ** 2))
+        rmse_list.append(rmse)
+
+        print(f"Row {idx+1} params: beta0={beta0:.4f}, beta1={beta1:.4f}, beta2={beta2:.4f}, beta3={beta3:.4f}, lambd1={lambd1:.4f}, lambd2={lambd2:.4f} | RMSE={rmse:.5f}")
 
         if plot_curves:
             T_fine = np.linspace(min(T_years), max(T_years), 200)
@@ -126,23 +129,56 @@ def fit_svensson_to_csv(csv_path, country='Country', plot_curves=True, save_beta
             plt.ylabel("Yield (%)")
             plt.legend()
             plt.tight_layout()
+            ax = plt.gca()
+            # --- Add RMSE annotation box ---
+            textstr = f"RMSE = {rmse:.5f}"
+            ax.text(
+                0.97, 0.97, textstr,
+                transform=ax.transAxes,
+                fontsize=20,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(facecolor='white', edgecolor='#183057', boxstyle='square,pad=0.3', alpha=0.85)
+            )
             plt.show()
 
     if save_betas and betas_list:
         betas_df = pd.DataFrame(
             betas_list,
-            columns=['beta0', 'beta1', 'beta2', 'beta3', 'tau1', 'tau2']
+            columns=['beta0', 'beta1', 'beta2', 'beta3', 'lambd1', 'lambd2']
         )
+        # Add RMSE as a column
+        if len(betas_list) == len(rmse_list):
+            betas_df['rmse'] = rmse_list
         betas_csv = f"svensson-{country}-betas.csv"
         betas_df.to_csv(betas_csv, index=False)
-        print(f"\nSaved all fitted betas to: {betas_csv}")
+        print(f"\nSaved all fitted betas (+RMSE) to: {betas_csv}")
 
-# --- Plot All Raw Curves in One Figure ---
+# --- Plot All Curves in One Figure, with average RMSE in a box ---
 
-def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 10)):
+def plot_all_curves(csv_path, country='Country', paramtype='svensson', figsize=(12,6), ylim=(-2, 10)):
     df = pd.read_csv(csv_path)
     maturities = [str(c).strip() for c in df.columns]
     T_years = parse_maturities(maturities)
+
+    # --- Try to load average RMSE if exists ---
+    avg_rmse = None
+    betas_csv = f"{paramtype}-{country}-betas.csv"
+    try:
+        if os.path.exists(betas_csv):
+            betas_df = pd.read_csv(betas_csv)
+            print("Loaded betas file:", betas_csv)
+            print(betas_df.head())
+            if "rmse" in betas_df.columns:
+                avg_rmse = betas_df["rmse"].mean()
+                print(f"Avg RMSE computed for {country}: {avg_rmse:.5f}")
+            else:
+                print(f"RMSE column not found in: {betas_csv}")
+        else:
+            print(f"File {betas_csv} not found.")
+    except Exception as e:
+        print("Failed to load betas CSV:", e)
+        avg_rmse = None
 
     plt.figure(figsize=figsize)
     for idx, row in df.iterrows():
@@ -168,12 +204,26 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 10)):
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(25)
         label.set_color('#183057')
+
+    # --- Add average RMSE as a box in the top right ---
+    if avg_rmse is not None:
+        textstr = f"Avg. RMSE = {avg_rmse:.4f}"
+        ax.text(
+            0.97, 0.97, textstr,
+            transform=ax.transAxes,
+            fontsize=25,
+            verticalalignment='top',
+            horizontalalignment='right',
+            bbox=dict(facecolor='white', edgecolor='#183057', boxstyle='square,pad=0.3', alpha=0.85)
+        )
+    else:
+        print("Avg RMSE not available for box annotation.")
+
     plt.show()
 
 # --- Main Script ---
 
 if __name__ == "__main__":
-    # List of (CSV path, country code)
     datasets = [
         (r'Chapter 2/Data/GBP-Yield-Curve.csv', 'GBP'),
         (r'Chapter 2/Data/SG-Yield-Curve.csv', 'SGD'),
@@ -181,14 +231,16 @@ if __name__ == "__main__":
         (r'Chapter 2/Data/CGB-Yield-Curve.csv', 'RMB'),
         (r'Chapter 2/Data/ECB-Yield-Curve.csv', 'EUR'),
     ]
-    for csv_path, country in datasets:
-        try:
-            plot_all_curves(csv_path, country=country)
-        except Exception as e:
-            print(f"Error plotting {country}: {e}")
-
+    # --- Fit and save Svensson params and RMSEs FIRST ---
     for csv_path, country in datasets:
         try:
             fit_svensson_to_csv(csv_path, country=country, plot_curves=False, save_betas=True)
         except Exception as e:
             print(f"Error fitting {country}: {e}")
+
+    # --- Plot all curves after CSVs exist ---
+    for csv_path, country in datasets:
+        try:
+            plot_all_curves(csv_path, country=country, paramtype='svensson')
+        except Exception as e:
+            print(f"Error plotting {country}: {e}")

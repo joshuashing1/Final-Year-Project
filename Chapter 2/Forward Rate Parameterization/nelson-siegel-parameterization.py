@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from numbers import Real
 from typing import Union, Tuple
+import os
 
 # ---- Nelson-Siegel Model Implementation ----
 
@@ -15,18 +16,18 @@ class NelsonSiegelCurve:
     beta0: float
     beta1: float
     beta2: float
-    tau: float
+    lambd: float  # renamed from tau to lambd
 
     def factors(self, T: Union[float, np.ndarray]) -> Union[Tuple[float, float], Tuple[np.ndarray, np.ndarray]]:
-        tau = self.tau
+        lambd = self.lambd
         if isinstance(T, Real) and T <= 0:
             return 1, 0
         elif isinstance(T, np.ndarray):
             zero_idx = T <= 0
             T = T.copy()
             T[zero_idx] = EPS  # avoid warnings in calculations
-        exp_tt0 = np.exp(-T / tau)
-        factor1 = (1 - exp_tt0) / (T / tau)
+        exp_tt0 = np.exp(-T / lambd)
+        factor1 = (1 - exp_tt0) / (T / lambd)
         factor2 = factor1 - exp_tt0
         if isinstance(T, np.ndarray):
             factor1[zero_idx] = 1
@@ -56,37 +57,38 @@ def parse_maturities(maturities):
             parsed.append(float(m))
     return np.array(parsed)
 
-# ---- Fitting Function ----
+# ---- Nelson-Siegel Fitting Function ----
 
-def nelson_siegel_func(T, beta0, beta1, beta2, tau):
+def nelson_siegel_func(T, beta0, beta1, beta2, lambd):
     T = np.array(T)
-    tau = max(tau, EPS)
-    exp_tt0 = np.exp(-T / tau)
-    factor1 = (1 - exp_tt0) / (T / tau)
+    lambd = max(lambd, EPS)
+    exp_tt0 = np.exp(-T / lambd)
+    factor1 = (1 - exp_tt0) / (T / lambd)
     factor2 = factor1 - exp_tt0
     return beta0 + beta1 * factor1 + beta2 * factor2
 
-# ---- Fit NS Curve to All Curves in a CSV AND SAVE BETAS ----
+# ---- Fit NS Curve to All Curves in a CSV AND SAVE BETAS + RMSE ----
 
-def fit_ns_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True):
+def fit_ns_to_csv(csv_path, country='Country', plot_curves=False, save_betas=True):
     print(f"\n=== Fitting Nelson-Siegel: {country} ({csv_path}) ===")
     df = pd.read_csv(csv_path)
     maturities = [str(c).strip() for c in df.columns]
     T_years = parse_maturities(maturities)
 
     betas_list = []
+    rmse_list = []
 
     for idx, row in df.iterrows():
         yields = row.values.astype(float)
         b0_guess = yields[-1]
         b1_guess = yields[0] - yields[-1]
         b2_guess = 0.0
-        tau_guess = 2.0
-        p0 = [b0_guess, b1_guess, b2_guess, tau_guess]
+        lambd_guess = 2.0
+        p0 = [b0_guess, b1_guess, b2_guess, lambd_guess]
         try:
             params, _ = curve_fit(
                 nelson_siegel_func,
-                T_years, yields, 
+                T_years, yields,
                 p0=p0,
                 bounds=([-10, -10, -10, 0.01], [15, 15, 15, 20]),
                 maxfev=10000
@@ -94,9 +96,15 @@ def fit_ns_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True
         except RuntimeError:
             print(f"Curve {idx}: Optimization failed, skipping.")
             continue
-        beta0, beta1, beta2, tau = params
-        betas_list.append([beta0, beta1, beta2, tau])  # <-- Save params
-        print(f"Row {idx+1} params: beta0={beta0:.4f}, beta1={beta1:.4f}, beta2={beta2:.4f}, tau={tau:.4f}")
+        beta0, beta1, beta2, lambd = params
+        betas_list.append([beta0, beta1, beta2, lambd])  # Save params
+
+        # --- Compute RMSE for this fit ---
+        yfit = nelson_siegel_func(T_years, *params)
+        rmse = np.sqrt(np.mean((yields - yfit) ** 2))
+        rmse_list.append(rmse)
+
+        print(f"Row {idx+1} params: beta0={beta0:.4f}, beta1={beta1:.4f}, beta2={beta2:.4f}, lambd={lambd:.4f} | RMSE={rmse:.5f}")
 
         if plot_curves:
             T_fine = np.linspace(min(T_years), max(T_years), 200)
@@ -109,23 +117,56 @@ def fit_ns_to_csv(csv_path, country='Country', plot_curves=True, save_betas=True
             plt.ylabel("Yield (%)")
             plt.legend()
             plt.tight_layout()
+            ax = plt.gca()
+            # --- Add RMSE annotation box ---
+            textstr = f"RMSE = {rmse:.5f}"
+            ax.text(
+                0.97, 0.97, textstr,
+                transform=ax.transAxes,
+                fontsize=20,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(facecolor='white', edgecolor='#183057', boxstyle='square,pad=0.3', alpha=0.85)
+            )
             plt.show()
 
     if save_betas and betas_list:
         betas_df = pd.DataFrame(
             betas_list,
-            columns=['beta0', 'beta1', 'beta2', 'tau']
+            columns=['beta0', 'beta1', 'beta2', 'lambd']
         )
+        # Add RMSE as a column
+        if len(betas_list) == len(rmse_list):
+            betas_df['rmse'] = rmse_list
         betas_csv = f"nelson-siegel-{country}-betas.csv"
         betas_df.to_csv(betas_csv, index=False)
-        print(f"\nSaved all fitted betas to: {betas_csv}")
+        print(f"\nSaved all fitted betas (+RMSE) to: {betas_csv}")
 
-# ---- New: Plot All Curves in One Figure (like screenshot) ----
+# ---- Plot All Curves in One Figure, with average RMSE in a box ----
 
-def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 10)):
+def plot_all_curves(csv_path, country='Country', figsize=(12,6), ylim=(-2, 10)):
     df = pd.read_csv(csv_path)
     maturities = [str(c).strip() for c in df.columns]
     T_years = parse_maturities(maturities)
+
+    # --- Try to load average RMSE if exists ---
+    avg_rmse = None
+    betas_csv = f"nelson-siegel-{country}-betas.csv"
+    try:
+        if os.path.exists(betas_csv):
+            betas_df = pd.read_csv(betas_csv)
+            print("Loaded betas file:", betas_csv)
+            print(betas_df.head())
+            if "rmse" in betas_df.columns:
+                avg_rmse = betas_df["rmse"].mean()
+                print(f"Avg RMSE computed for {country}: {avg_rmse:.5f}")
+            else:
+                print(f"RMSE column not found in: {betas_csv}")
+        else:
+            print(f"File {betas_csv} not found.")
+    except Exception as e:
+        print("Failed to load betas CSV:", e)
+        avg_rmse = None
 
     plt.figure(figsize=figsize)
     for idx, row in df.iterrows():
@@ -151,11 +192,25 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 10)):
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
         label.set_fontsize(25)
         label.set_color('#183057')
+
+    # --- Add average RMSE as a box in the top right ---
+    if avg_rmse is not None:
+        textstr = f"Avg. RMSE = {avg_rmse:.4f}"
+        ax.text(
+            0.97, 0.97, textstr,
+            transform=ax.transAxes,
+            fontsize=25,
+            verticalalignment='top',
+            horizontalalignment='right',
+            bbox=dict(facecolor='white', edgecolor='red', boxstyle='square,pad=0.3', alpha=0.85)
+        )
+    else:
+        print("Avg RMSE not available for box annotation.")
+
     plt.show()
 
 # ---- Main Script ----
 if __name__ == "__main__":
-    # List of (CSV path, country code)
     datasets = [
         (r'Chapter 2/Data/GBP-Yield-Curve.csv', 'GBP'),
         (r'Chapter 2/Data/SG-Yield-Curve.csv', 'SGD'),
@@ -163,14 +218,16 @@ if __name__ == "__main__":
         (r'Chapter 2/Data/CGB-Yield-Curve.csv', 'RMB'),
         (r'Chapter 2/Data/ECB-Yield-Curve.csv', 'EUR'),
     ]
-    for csv_path, country in datasets:
-        try:
-            plot_all_curves(csv_path, country=country)
-        except Exception as e:
-            print(f"Error plotting {country}: {e}")
-
+    # --- Fit and save NS params and RMSEs FIRST ---
     for csv_path, country in datasets:
         try:
             fit_ns_to_csv(csv_path, country=country, plot_curves=False, save_betas=True)
         except Exception as e:
             print(f"Error fitting {country}: {e}")
+
+    # --- Plot all curves after CSVs exist ---
+    for csv_path, country in datasets:
+        try:
+            plot_all_curves(csv_path, country=country)
+        except Exception as e:
+            print(f"Error plotting {country}: {e}")
