@@ -149,9 +149,9 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 10)):
         yields = row.values.astype(float)
         plt.plot(T_years, yields, lw=1)
 
-    plt.title(country, fontsize=13, weight='bold', color='#183057', pad=10)
-    plt.xlabel("Maturity (years)", fontsize=11)
-    plt.ylabel("Swap Rate (%)", fontsize=11)
+    plt.title(country, fontsize=35, weight='bold', color='#183057', pad=10)
+    plt.xlabel("Maturity (years)", fontsize=25)
+    plt.ylabel("Swap Rate (%)", fontsize=25)
     plt.xlim([min(T_years), max(T_years)])
     plt.ylim(ylim)
     plt.grid(False)
@@ -164,9 +164,9 @@ def plot_all_curves(csv_path, country='Country', figsize=(3,3), ylim=(-2, 10)):
     ax.spines['bottom'].set_linewidth(1)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='both', colors='#183057')
+    ax.tick_params(axis='both', colors='#183057', labelsize=25)
     for label in (ax.get_xticklabels() + ax.get_yticklabels()):
-        label.set_fontsize(10)
+        label.set_fontsize(25)
         label.set_color('#183057')
     plt.show()
 
