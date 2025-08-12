@@ -30,7 +30,7 @@ X = df.values  # shape: (num_samples, num_maturities)
 
 # --- Autoencoder Construction ---
 input_dim = X.shape[1]
-encoding_dim = 15  # You can tune this
+encoding_dim = 13  # You can tune this
 
 input_yield = Input(shape=(input_dim,))
 encoded = Dense(30, activation='relu')(input_yield)
