@@ -17,6 +17,8 @@ class NelsonSiegelCurve:
     lambd: float
 
     def factors(self, T: Union[float, np.ndarray]):
+        """
+        """
         lambd = self.lambd
         if isinstance(T, Real) and T <= 0:
             return 1, 0
