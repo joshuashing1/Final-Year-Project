@@ -20,6 +20,34 @@ def parse_maturities(labels):
             out.append(float(s))
     return np.array(out, dtype=float)
 
+def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_path):
+    """Plot in accordance to tenor structure."""
+    x_min = float(np.nanmin(maturities_years))
+    x_max = float(np.nanmax(maturities_years))
+    x_grid = np.linspace(x_min, x_max, 300)
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    for curve in fitted_curves:
+        ax.plot(x_grid, curve(x_grid), linewidth=0.8)
+
+    ax.set_xlabel("Maturity (years)", fontsize=14)
+    ax.set_ylabel("Interest Rate (%)", fontsize=14)
+    ax.set_title(title, fontsize=24, fontweight="bold", pad=12)
+    ax.set_ylim(-2, 10)
+
+    avg_rmse = float(np.nanmean(rmse_values))
+    ax.text(
+        0.70, 0.92, f"Avg. RMSE = {avg_rmse:.4f}",
+        transform=ax.transAxes,
+        fontsize=14,
+        bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
+    )
+
+    fig.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    plt.show()
+    print(f"Saved figure to {save_path}")
+
 
 def main():
     """Calibrate Nelson-Siegel interest rate model using OLS calibrator with root mean squared error statistics.
@@ -54,33 +82,7 @@ def main():
     out.to_csv(out_path, index=False)
     print(f"Saved {len(out)} rows to {out_path}")\
     
-    """Plot in accordance to tenor structure."""
-    x_min = float(np.nanmin(maturities_years))
-    x_max = float(np.nanmax(maturities_years))
-    x_grid = np.linspace(x_min, x_max, 300)
-
-    fig, ax = plt.subplots(figsize=(12, 5))
-    for curve in fitted_curves:
-        ax.plot(x_grid, curve(x_grid), linewidth=0.8)
-
-    ax.set_xlabel("Maturity (years)", fontsize=14)
-    ax.set_ylabel("Interest Rate (%)", fontsize=14)
-    ax.set_title("USD", fontsize=24, fontweight="bold", pad=12) # change currency convention
-    ax.set_ylim(-2, 10)
-
-    avg_rmse = float(np.nanmean(out["rmse"]))
-    ax.text(
-        0.70, 0.92, f"Avg. RMSE = {avg_rmse:.4f}",
-        transform=ax.transAxes,
-        fontsize=14,
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor="red", linewidth=1.5)
-    )
-
-    fig.tight_layout()
-    fig_path = "nelson-USD-yield-curve.png"
-    plt.savefig(fig_path, dpi=200)
-    plt.show()
-    print(f"Saved figure to {fig_path}")
+    yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title="USD", save_path="nelson-USD-yield-curve.png")
 
 if __name__ == "__main__":
     main()

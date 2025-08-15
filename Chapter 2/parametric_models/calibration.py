@@ -11,8 +11,8 @@ import numpy as np
 from numpy.linalg import lstsq
 from scipy.optimize import minimize
 
-from ns import NelsonSiegelCurve
-# from svn import SvenssonCurve
+from nelson_siegel import NelsonSiegelCurve
+from svensson import SvenssonCurve
 
 def _assert_same_shape(t: np.ndarray, y: np.ndarray) -> None:
     assert t.shape == y.shape, "Mismatching shapes of time and values"
