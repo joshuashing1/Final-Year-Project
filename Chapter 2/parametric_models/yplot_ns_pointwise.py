@@ -2,8 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from calibration import calibrate_ns_ols
-# from calibration import calibrate_svn_ols
+from calibration import calibrate_ns_ptwise
 
 def parse_maturities(labels):
     """Convert labels 'M', 'Y' to years as floats.
@@ -20,8 +19,10 @@ def parse_maturities(labels):
             out.append(float(s))
     return np.array(out, dtype=float)
 
+
 def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_path):
-    """Plot in accordance to tenor structure."""
+    """Yield curve plot in accordance to tenor structure.
+    """
     x_min = float(np.nanmin(maturities_years))
     x_max = float(np.nanmax(maturities_years))
     x_grid = np.linspace(x_min, x_max, 300)
@@ -34,6 +35,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     ax.set_ylabel("Interest Rate (%)", fontsize=14)
     ax.set_title(title, fontsize=24, fontweight="bold", pad=12)
     ax.set_ylim(-2, 10)
+    ax.set_xlim(left=0, right=x_max)
 
     avg_rmse = float(np.nanmean(rmse_values))
     ax.text(
@@ -49,24 +51,24 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     print(f"Saved figure to {save_path}")
 
 
-def main():
-    """Calibrate Nelson-Siegel interest rate model using OLS calibrator with root mean squared error statistics.
-    Comment this function to calibrate Svensson interest rate model.
-    """
-    csv_path = r"Chapter 2\Data\USTreasury-Yield-Final.csv"
+def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 0.0609):
+    """Load a single CSV, calibrate per row, save params & plot."""
     df = pd.read_csv(csv_path, header=0)
     maturities_years = parse_maturities(df.columns.tolist())
+
     results = []
     fitted_curves = []
+
     for i, row in df.iterrows():
         y = pd.to_numeric(row, errors="coerce").to_numpy(dtype=float)
         mask = ~np.isnan(y)
         t = maturities_years[mask]
         y = y[mask]
-        curve, opt_res = calibrate_ns_ols(t, y, lambd0=1.0)
-        fitted_curves.append(curve)
 
-        yhat = curve(t)                   
+        curve, _ = calibrate_ns_ptwise(t, y, lambd0=lambd0)
+
+        fitted_curves.append(curve)
+        yhat = curve(t)
         rmse = float(np.sqrt(np.mean((yhat - y) ** 2)))
 
         results.append({
@@ -77,12 +79,46 @@ def main():
             "lambd": float(curve.lambd),
             "rmse": rmse
         })
-    out = pd.DataFrame(results) # save parameters to CSV
-    out_path = "ns_fitted_params.csv"
-    out.to_csv(out_path, index=False)
-    print(f"Saved {len(out)} rows to {out_path}")\
-    
-    yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title="USD", save_path="nelson-USD-yield-curve.png")
+
+    out = pd.DataFrame(results)
+
+    params_path = f"{title}_ns_pointwise_betas.csv"
+    out.to_csv(params_path, index=False)
+    print(f"Saved {len(out)} rows to {params_path}")
+
+    fig_path = f"{title}_ns_pointwise_curve.png"
+    yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title=title, save_path=str(fig_path))
+
+
+def main():
+    """Configure the currency datasets to process.
+    """
+    lists = [
+        {
+            "csv_path": r"Chapter 2\Data\USTreasury_Yield_Final.csv",
+            "title": "USD",
+        },
+        {
+            "csv_path": r"Chapter 2\Data\CGB_Yield_Final.csv",
+            "title": "CNY",
+        },
+        {
+            "csv_path": r"Chapter 2\Data\GLC_Yield_Final.csv",
+            "title": "GBP",
+        },
+        {
+            "csv_path": r"Chapter 2\Data\SGS_Yield_Final.csv",
+            "title": "SGD",
+        },
+        {
+            "csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv",
+            "title": "EUR",
+        },
+    ]
+
+    out_dir = "ns_outputs"  # all outputs go here
+    for list in lists:
+        process_yield_csv(list["csv_path"], title=list["title"], out_dir=out_dir, lambd0=1.0)
 
 if __name__ == "__main__":
     main()

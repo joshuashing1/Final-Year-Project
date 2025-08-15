@@ -33,42 +33,42 @@ def betas_ns_ols(
     return NelsonSiegelCurve(beta[0], beta[1], beta[2], lambd), lstsq_res
 
 
-# def calibrate_ns_grid(
-#     t: np.ndarray, y: np.ndarray, lambd_lo: float = 0.05, lambd_hi: float = 5.0, n_grid: int = 100
-# ) -> Tuple[NelsonSiegelCurve, dict]:
-#     """
-#     Nelson–Siegel calibration by λ grid search (Nelson & Siegel, 1987):
-#       - Try n_grid equally spaced λ in [lambd_lo, lambd_hi]
-#       - For each λ, estimate betas by OLS
-#       - Pick λ that minimizes SSE
-#     Returns: (best_curve, info_dict)
-#     """
-#     _assert_same_shape(t, y)
-#     lambdas = np.linspace(lambd_lo, lambd_hi, n_grid)
+def calibrate_ns_grid(
+    t: np.ndarray, y: np.ndarray, lambd_lo: float = 0.05, lambd_hi: float = 5.0, n_grid: int = 1000
+) -> Tuple[NelsonSiegelCurve, dict]:
+    """
+    Nelson–Siegel calibration by λ grid search (Nelson & Siegel, 1987):
+      - Try n_grid equally spaced λ in [lambd_lo, lambd_hi]
+      - For each λ, estimate betas by OLS
+      - Pick λ that minimizes SSE
+    Returns: (best_curve, info_dict)
+    """
+    _assert_same_shape(t, y)
+    lambdas = np.linspace(lambd_lo, lambd_hi, n_grid)
 
-#     best_sse = np.inf
-#     best_curve = None
-#     sse_list = []
+    best_sse = np.inf
+    best_curve = None
+    sse_list = []
 
-#     for L in lambdas:
-#         curve, _ = betas_ns_ols(L, t, y)
-#         resid = curve(t) - y
-#         sse = float(np.dot(resid, resid))
-#         sse_list.append(sse)
-#         if sse < best_sse:
-#             best_sse = sse
-#             best_curve = curve
+    for L in lambdas:
+        curve, _ = betas_ns_ols(L, t, y)
+        resid = curve(t) - y
+        sse = float(np.dot(resid, resid))
+        sse_list.append(sse)
+        if sse < best_sse:
+            best_sse = sse
+            best_curve = curve
 
-#     info = {
-#         "lambdas": lambdas,
-#         "sse": np.array(sse_list, dtype=float),
-#         "best_sse": best_sse,
-#         "best_lambda": float(best_curve.lambd) if best_curve else np.nan,
-#     }
-#     return best_curve, info
+    info = {
+        "lambdas": lambdas,
+        "sse": np.array(sse_list, dtype=float),
+        "best_sse": best_sse,
+        "best_lambda": float(best_curve.lambd) if best_curve else np.nan,
+    }
+    return best_curve, info
 
 
-def errorfn_ns_ols(lambd: float, t: np.ndarray, y: np.ndarray) -> float:
+def errorfn_ns_ptwise(lambd: float, t: np.ndarray, y: np.ndarray) -> float:
     """Sum of squares error function for a Nelson-Siegel model and
     time-value pairs t and y. All betas are obtained by ordinary
     least squares given lambd.
@@ -78,15 +78,15 @@ def errorfn_ns_ols(lambd: float, t: np.ndarray, y: np.ndarray) -> float:
     return np.sum((curve(t) - y) ** 2)
 
 
-def calibrate_ns_ols(
-    t: np.ndarray, y: np.ndarray, lambd0: float = 1.0
+def calibrate_ns_ptwise(
+    t: np.ndarray, y: np.ndarray, lambd0: float = 0.0609
 ) -> Tuple[NelsonSiegelCurve, Any]:
-    """Calibrate a Nelson-Siegel curve to time-value pairs
+    """Pointwise calibration of a Nelson-Siegel curve to time-value pairs
     t and y, by optimizing lambd and chosing all betas
     using ordinary least squares.
     """
     _assert_same_shape(t, y)
-    opt_res = minimize(errorfn_ns_ols, x0=lambd0, args=(t, y))
+    opt_res = minimize(errorfn_ns_ptwise, x0=lambd0, args=(t, y))
     curve, lstsq_res = betas_ns_ols(opt_res.x[0], t, y)
     return curve, opt_res
 
