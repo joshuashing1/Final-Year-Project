@@ -31,7 +31,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     for curve in fitted_curves:
         ax.plot(x_grid, curve(x_grid), linewidth=0.8)
 
-    ax.set_xlabel("Maturity (years)", fontsize=14)
+    ax.set_xlabel("Maturity (years) -- Pointwise: $\lambda_{{init}} = 0.0609$", fontsize=14)
     ax.set_ylabel("Interest Rate (%)", fontsize=14)
     ax.set_title(title, fontsize=24, fontweight="bold", pad=12)
     ax.set_ylim(-2, 10)
@@ -51,7 +51,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     print(f"Saved figure to {save_path}")
 
 
-def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 0.0609):
+def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 1.0):
     """Load a single CSV, calibrate per row, save params & plot."""
     df = pd.read_csv(csv_path, header=0)
     maturities_years = parse_maturities(df.columns.tolist())

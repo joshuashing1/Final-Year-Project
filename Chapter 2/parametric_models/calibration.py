@@ -79,7 +79,7 @@ def errorfn_ns_ptwise(lambd: float, t: np.ndarray, y: np.ndarray) -> float:
 
 
 def calibrate_ns_ptwise(
-    t: np.ndarray, y: np.ndarray, lambd0: float = 0.0609
+    t: np.ndarray, y: np.ndarray, lambd0: float = 1.0
 ) -> Tuple[NelsonSiegelCurve, Any]:
     """Pointwise calibration of a Nelson-Siegel curve to time-value pairs
     t and y, by optimizing lambd and chosing all betas
