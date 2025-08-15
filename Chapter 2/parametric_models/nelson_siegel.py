@@ -39,11 +39,12 @@ class NelsonSiegelCurve:
         ) -> Union[Tuple[float, float], Tuple[np.ndarray, np.ndarray]]:
         """Factor loadings for time(s) (t, T), excluding constant."""
         lambd = self.lambd
-        if not np.isfinite(lambd) or lambd <= 0.0:
-            if isinstance(T, np.ndarray):
-                n = np.asarray(T).size
-                return np.ones(n), np.zeros(n)
-            return 1.0, 0.0
+        # delete after finalize
+        # if not np.isfinite(lambd) or lambd <= 0.0:
+        #     if isinstance(T, np.ndarray):
+        #         n = np.asarray(T).size
+        #         return np.ones(n), np.zeros(n)
+        #     return 1.0, 0.0
         
         tau = self._as_tau(T, t)
         if isinstance(tau, Real) and tau <= 0:
