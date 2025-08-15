@@ -1,2 +1,2 @@
 from parametric_models.nelson_siegel import NelsonSiegelCurve
-from parametric_models.svensson import NelsonSiegelSvenssonCurve
+from parametric_models.svensson import SvenssonCurve

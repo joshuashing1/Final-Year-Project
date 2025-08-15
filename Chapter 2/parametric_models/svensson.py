@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-"""Implementation of a Nelson-Siegel-Svensson interest rate curve model.
-See `NelsonSiegelSvenssonCurve` class for details.
+"""Implementation of a Svensson interest rate curve model.
+See `SvenssonCurve` class for details.
 """
 
 from numbers import Real
@@ -15,8 +15,8 @@ EPS = np.finfo(float).eps
 
 
 @dataclass
-class NelsonSiegelSvenssonCurve:
-    """Implementation of a Nelson-Siegel-Svensson interest rate curve model.
+class SvenssonCurve:
+    """Implementation of a Svensson interest rate curve model.
     This curve can be interpreted as a factor model with four
     factors (including a constant).
     """

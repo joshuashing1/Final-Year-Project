@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """Calibration methods for Nelson-Siegel(-Svensson) Models.
-See `calibrate_ns_ols` and `calibrate_nss_ols` for ordinary least squares
+See `calibrate_ns_ols` and `calibrate_svn_ols` for ordinary least squares
 (OLS) based methods.
 """
 
@@ -12,7 +12,7 @@ from numpy.linalg import lstsq
 from scipy.optimize import minimize
 
 from parametric_models.nelson_siegel import NelsonSiegelCurve
-from parametric_models.svensson import NelsonSiegelSvenssonCurve
+from parametric_models.svensson import SvenssonCurve
 
 def _assert_same_shape(t: np.ndarray, y: np.ndarray) -> None:
     assert t.shape == y.shape, "Mismatching shapes of time and values"
@@ -64,7 +64,7 @@ def empirical_factors(
     return y_10y, y_10y - y_3m, 2 * y_2y - y_3m - y_10y
 
 
-def betas_nss_ols(
+def betas_svn_ols(
     tau: Tuple[float, float], t: np.ndarray, y: np.ndarray
 ) -> Tuple[NelsonSiegelSvenssonCurve, Any]:
     """Calculate the best-fitting beta-values given tau (= array of tau1
@@ -82,7 +82,7 @@ def betas_nss_ols(
     )
 
 
-def errorfn_nss_ols(tau: Tuple[float, float], t: np.ndarray, y: np.ndarray) -> float:
+def errorfn_svn_ols(tau: Tuple[float, float], t: np.ndarray, y: np.ndarray) -> float:
     """Sum of squares error function for a Nelson-Siegel-Svensson
     model and time-value pairs t and y. All betas are obtained
     by ordinary least squares given tau (= array of tau1
@@ -93,7 +93,7 @@ def errorfn_nss_ols(tau: Tuple[float, float], t: np.ndarray, y: np.ndarray) -> f
     return np.sum((curve(t) - y) ** 2)
 
 
-def calibrate_nss_ols(
+def calibrate_svn_ols(
     t: np.ndarray, y: np.ndarray, tau0: Tuple[float, float] = (2.0, 5.0)
 ) -> Tuple[NelsonSiegelSvenssonCurve, Any]:
     """Calibrate a Nelson-Siegel-Svensson curve to time-value
