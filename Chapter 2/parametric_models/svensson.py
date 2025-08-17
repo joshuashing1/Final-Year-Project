@@ -94,7 +94,7 @@ class SvenssonCurve:
 
     def zero(self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
     ) -> Union[float, np.ndarray]:
-        """Zero rate(s) y(t,T) for the Nelson–Siegel–Svensson curve."""
+        """Zero rate(s) y(t,T) for the Svensson curve."""
         factor1, factor2, factor3 = self.factors(T, t)
         return self.beta1 + self.beta2 * factor1 + self.beta3 * factor2 + self.beta4 * factor3
 
@@ -105,7 +105,7 @@ class SvenssonCurve:
 
     def forward(self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
     ) -> Union[float, np.ndarray]:
-        """Instantaneous forward rate f(t,T) for the Nelson–Siegel–Svensson curve."""
+        """Instantaneous forward rate f(t,T) for the Svensson curve."""
         tau = self._as_tau(T, t)
         if isinstance(tau, Real):
             if tau < 0:
