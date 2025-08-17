@@ -78,26 +78,26 @@ def calibrate_ns_grid(
     
     return opt_curve, opt_res, opt_lambd
 
-def ns_grid_error_surface(
-    t: np.ndarray, y: np.ndarray, lambd_lo: float = 0.05, lambd_upp: float = 5.0, n_grid: int = 200
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Returns (lambdas, maturities, err_matrix) where:
-      - lambdas: shape (n_grid,)
-      - maturities: shape (n_maturities,)
-      - err_matrix: shape (n_grid, n_maturities), with per-maturity squared errors
-        after refitting betas by OLS at each lambda.
-    """
-    _assert_same_shape(t, y)
-    lambds = np.linspace(lambd_lo, lambd_upp, n_grid)
-    errs = np.empty((n_grid, t.size), dtype=float)
+# def ns_grid_error_surface(
+#     t: np.ndarray, y: np.ndarray, lambd_lo: float = 0.05, lambd_upp: float = 5.0, n_grid: int = 200
+# ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+#     """
+#     Returns (lambdas, maturities, err_matrix) where:
+#       - lambdas: shape (n_grid,)
+#       - maturities: shape (n_maturities,)
+#       - err_matrix: shape (n_grid, n_maturities), with per-maturity squared errors
+#         after refitting betas by OLS at each lambda.
+#     """
+#     _assert_same_shape(t, y)
+#     lambds = np.linspace(lambd_lo, lambd_upp, n_grid)
+#     errs = np.empty((n_grid, t.size), dtype=float)
 
-    for i, lambd in enumerate(lambds):
-        curve, _ = betas_ns_ols(lambd, t, y)     
-        resid = curve(t) - y                  
-        errs[i, :] = resid * resid           
+#     for i, lambd in enumerate(lambds):
+#         curve, _ = betas_ns_ols(lambd, t, y)     
+#         resid = curve(t) - y                  
+#         errs[i, :] = resid * resid           
 
-    return lambds, t.copy(), errs
+#     return lambds, t.copy(), errs
 
 # I think can delete this. 
 # def empirical_factors(

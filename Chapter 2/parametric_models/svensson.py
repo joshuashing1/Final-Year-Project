@@ -56,6 +56,7 @@ class NelsonSiegelSvenssonCurve:
             zero_idx = tau <= 0
             tau = tau.astype(float, copy=True)
             tau[zero_idx] = EPS   # avoid warnings in calculations
+            
         exp_tt0_1 = exp(-tau / lambd1)
         factor1 = (1.0 - exp_tt0_1) / (tau / lambd1)
         factor2 = factor1 - exp_tt0_1
@@ -91,43 +92,30 @@ class NelsonSiegelSvenssonCurve:
         else:
             return np.array([[1.0, factor1, factor2, factor3]])
 
-    def zero(
-        self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
+    def zero(self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
     ) -> Union[float, np.ndarray]:
         """Zero rate(s) y(t,T) for the Nelson–Siegel–Svensson curve."""
-        f1, f2, f3 = self.factors(T, t)
-        return self.beta1 + self.beta2 * f1 + self.beta3 * f2 + self.beta4 * f3
+        factor1, factor2, factor3 = self.factors(T, t)
+        return self.beta1 + self.beta2 * factor1 + self.beta3 * factor2 + self.beta4 * factor3
 
-    def __call__(
-        self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
+    def __call__(self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
     ) -> Union[float, np.ndarray]:
         """Alias of zero(T, t): zero rate(s) y(t,T)."""
         return self.zero(T, t)
 
-    def forward(
-        self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
+    def forward(self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
     ) -> Union[float, np.ndarray]:
         """Instantaneous forward rate f(t,T) for the Nelson–Siegel–Svensson curve."""
-        τ = self._as_tau(T, t)
-        if isinstance(τ, Real):
-            if τ < 0:
-                τ = 0.0
-            exp1 = exp(-τ / self.lambd1)
-            exp2 = exp(-τ / self.lambd2)
-            return (
-                self.beta1
-                + self.beta2 * exp1
-                + self.beta3 * exp1 * (τ / self.lambd1)
-                + self.beta4 * exp2 * (τ / self.lambd2)
-            )
+        tau = self._as_tau(T, t)
+        if isinstance(tau, Real):
+            if tau < 0:
+                tau = 0.0
+            exp_tt0_1 = exp(-tau / self.lambd1)
+            exp_tt0_2 = exp(-tau / self.lambd2)
+            return self.beta1 + self.beta2 * exp_tt0_1 + self.beta3 * exp_tt0_1 * (tau / self.lambd1) + self.beta4 * exp_tt0_2 * (tau / self.lambd2)
         else:
-            τ = np.asarray(τ, dtype=float)
-            τ_clip = np.maximum(τ, 0.0)
-            exp1 = exp(-τ_clip / self.lambd1)
-            exp2 = exp(-τ_clip / self.lambd2)
-            return (
-                self.beta1
-                + self.beta2 * exp1
-                + self.beta3 * exp1 * (τ_clip / self.lambd1)
-                + self.beta4 * exp2 * (τ_clip / self.lambd2)
-            )
+            tau = np.asarray(tau, dtype=float)
+            tau_clip = np.maximum(tau, 0.0)
+            exp_tt0_1 = exp(-tau_clip / self.lambd1)
+            exp_tt0_2 = exp(-tau_clip / self.lambd2)
+            return self.beta1 + self.beta2 * exp_tt0_1 + self.beta3 * exp_tt0_1 * (tau_clip / self.lambd1) + self.beta4 * exp_tt0_2 * (tau_clip / self.lambd2)
