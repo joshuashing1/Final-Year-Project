@@ -109,43 +109,40 @@ def calibrate_ns_grid(
 
 
 def betas_svn_ols(
-    tau: Tuple[float, float], t: np.ndarray, y: np.ndarray
+    lambd: Tuple[float, float], t: np.ndarray, y: np.ndarray
 ) -> Tuple[SvenssonCurve, Any]:
     """Calculate the best-fitting beta-values given tau (= array of tau1
     and tau2) for time-value pairs t and y and return a corresponding
     Svensson curve instance.
     """
     _assert_same_shape(t, y)
-    curve = SvenssonCurve(0, 0, 0, 0, tau[0], tau[1])
+    curve = SvenssonCurve(0, 0, 0, 0, lambd[0], lambd[1])
     factors = curve.factor_matrix(t)
     lstsq_res = lstsq(factors, y, rcond=None)
     beta = lstsq_res[0]
-    return (
-        SvenssonCurve(beta[0], beta[1], beta[2], beta[3], tau[0], tau[1]),
-        lstsq_res,
-    )
+    return SvenssonCurve(beta[0], beta[1], beta[2], beta[3], lambd[0], lambd[1]), lstsq_res
 
 
-def errorfn_svn_ols(tau: Tuple[float, float], t: np.ndarray, y: np.ndarray) -> float:
+def errorfn_svn_ols(lambd: Tuple[float, float], t: np.ndarray, y: np.ndarray) -> float:
     """Sum of squares error function for a Svensson
     model and time-value pairs t and y. All betas are obtained
-    by ordinary least squares given tau (= array of tau1
-    and tau2).
+    by ordinary least squares given lambd (= array of lambd1
+    and lambd2).
     """
     _assert_same_shape(t, y)
-    curve, lstsq_res = betas_svn_ols(tau, t, y)
+    curve, lstsq_res = betas_svn_ols(lambd, t, y)
     return np.sum((curve(t) - y) ** 2)
 
 
-def calibrate_svn_ols(
-    t: np.ndarray, y: np.ndarray, tau0: Tuple[float, float] = (2.0, 5.0)
+def calibrate_svn_ptwise(
+    t: np.ndarray, y: np.ndarray, lambd0: Tuple[float, float] = (2.0, 5.0)
 ) -> Tuple[SvenssonCurve, Any]:
-    """Calibrate a Svensson curve to time-value
-    pairs t and y, by optimizing tau1 and tau2 and chosing
+    """Pointwise calibration of a Svensson curve to time-value
+    pairs t and y, by optimizing lambd1 and lambd2 and chosing
     all betas using ordinary least squares. This method does
     not work well regarding the recovery of true parameters.
     """
     _assert_same_shape(t, y)
-    opt_res = minimize(errorfn_svn_ols, x0=np.array(tau0), args=(t, y))
+    opt_res = minimize(errorfn_svn_ols, x0=np.array(lambd0), args=(t, y), method = "BFGS")
     curve, lstsq_res = betas_svn_ols(opt_res.x, t, y)
     return curve, opt_res
