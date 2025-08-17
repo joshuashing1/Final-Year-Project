@@ -94,26 +94,11 @@ def main():
     """Configure the currency datasets to process.
     """
     lists = [
-        {
-            "csv_path": r"Chapter 2\Data\USTreasury_Yield_Final.csv",
-            "title": "USD",
-        },
-        {
-            "csv_path": r"Chapter 2\Data\CGB_Yield_Final.csv",
-            "title": "CNY",
-        },
-        {
-            "csv_path": r"Chapter 2\Data\GLC_Yield_Final.csv",
-            "title": "GBP",
-        },
-        {
-            "csv_path": r"Chapter 2\Data\SGS_Yield_Final.csv",
-            "title": "SGD",
-        },
-        {
-            "csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv",
-            "title": "EUR",
-        },
+        {"csv_path": r"Chapter 2\Data\USTreasury_Yield_Final.csv", "title": "USD"},
+        {"csv_path": r"Chapter 2\Data\CGB_Yield_Final.csv", "title": "CNY"},
+        {"csv_path": r"Chapter 2\Data\GLC_Yield_Final.csv", "title": "GBP"},
+        {"csv_path": r"Chapter 2\Data\SGS_Yield_Final.csv", "title": "SGD"},
+        {"csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv", "title": "EUR"}
     ]
 
     out_dir = "ns_outputs"  # all outputs go here
