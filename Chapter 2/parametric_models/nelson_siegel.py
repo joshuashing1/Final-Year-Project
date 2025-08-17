@@ -88,14 +88,14 @@ class NelsonSiegelCurve:
         ) -> Union[float, np.ndarray]:
         """Instantaneous forward rate f(t,T) for the Nelson–Siegel interest rate curve.
         """
-        τ = self._as_tau(T, t)
-        if isinstance(τ, Real):
-            if τ < 0:
-                τ = 0.0
-            exp_tt0 = exp(-τ / self.lambd)
-            return self.beta1 + self.beta2 * exp_tt0 + self.beta3 * exp_tt0 * (τ / self.lambd)
+        tau = self._as_tau(T, t)
+        if isinstance(tau, Real):
+            if tau < 0:
+                tau = 0.0
+            exp_tt0 = exp(-tau / self.lambd)
+            return self.beta1 + self.beta2 * exp_tt0 + self.beta3 * exp_tt0 * (tau / self.lambd)
         else:
-            τ = np.asarray(τ, dtype=float)
-            τ_clip = np.maximum(τ, 0.0)
-            exp_tt0 = exp(-τ_clip / self.lambd)
-            return self.beta1 + self.beta2 * exp_tt0 + self.beta3 * exp_tt0 * (τ_clip / self.lambd)
+            tau = np.asarray(tau, dtype=float)
+            tau_clip = np.maximum(tau, 0.0)
+            exp_tt0 = exp(-tau_clip / self.lambd)
+            return self.beta1 + self.beta2 * exp_tt0 + self.beta3 * exp_tt0 * (tau_clip / self.lambd)

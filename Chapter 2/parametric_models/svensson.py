@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Implementation of a Nelson-Siegel-Svensson interest rate curve model.
+"""Implementation of a Nelson-Siegel–Svensson interest rate curve model (canonical form).
 See `NelsonSiegelSvenssonCurve` class for details.
 """
 
@@ -16,72 +16,118 @@ EPS = np.finfo(float).eps
 
 @dataclass
 class NelsonSiegelSvenssonCurve:
-    """Implementation of a Nelson-Siegel-Svensson interest rate curve model.
-    This curve can be interpreted as a factor model with four
-    factors (including a constant).
+    """Implementation of a Svensson interest rate curve model (canonical form).
+    This curve can be interpreted as a factor model with four factors (including a constant).
     """
 
-    beta0: float
-    beta1: float
-    beta2: float
-    beta3: float
-    tau1: float
-    tau2: float
+    beta1: float 
+    beta2: float  
+    beta3: float  
+    beta4: float  
+    lambd1: float   
+    lambd2: float   
 
-    def factors(
-        self, T: Union[float, np.ndarray]
+    @staticmethod
+    def _as_tau(T: Union[float, np.ndarray], t: Union[float, np.ndarray]
+        ) -> Union[float, np.ndarray]:
+        """Compute τ = T - t with broadcasting; default t may be 0."""
+        if isinstance(T, np.ndarray) or isinstance(t, np.ndarray):
+            return np.asarray(T) - np.asarray(t)
+        else:
+            return float(T) - float(t)
+
+    def factors(self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
     ) -> Union[Tuple[float, float, float], Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-        """Factor loadings for time(s) T, excluding constant."""
-        tau1 = self.tau1
-        tau2 = self.tau2
-        if isinstance(T, Real) and T <= 0:
-            return 1, 0, 0
-        elif isinstance(T, np.ndarray):
-            zero_idx = T <= 0
-            T[zero_idx] = EPS  # avoid warnings in calculations
-        exp_tt1 = exp(-T / tau1)
-        exp_tt2 = exp(-T / tau2)
-        factor1 = (1 - exp_tt1) / (T / tau1)
-        factor2 = factor1 - exp_tt1
-        factor3 = (1 - exp_tt2) / (T / tau2) - exp_tt2
-        if isinstance(T, np.ndarray):
-            T[zero_idx] = 0
-            factor1[zero_idx] = 1
-            factor2[zero_idx] = 0
-            factor3[zero_idx] = 0
+        """Factor loadings for time(s) (t, T), excluding constant."""
+        lambd1 = self.lambd1
+
+        if not np.isfinite(lambd1) or lambd1 <= 0.0:
+            if isinstance(τ, Real):
+                return 1.0, 0.0, 0.0
+            n = np.asarray(τ).size
+            ones = np.ones(n, dtype=float)
+            zeros = np.zeros(n, dtype=float)
+            return ones, zeros, zeros
+
+        tau = self._as_tau(T, t)
+        if isinstance(tau, Real) and tau <= 0:
+            return 1.0, 0.0, 0.0
+        elif isinstance(tau, np.ndarray):
+            zero_idx = tau <= 0
+            tau = tau.astype(float, copy=True)
+            tau[zero_idx] = EPS   # avoid warnings in calculations
+        exp_tt0_1 = exp(-tau / lambd1)
+        factor1 = (1.0 - exp_tt0_1) / (tau / lambd1)
+        factor2 = factor1 - exp_tt0_1
+
+        lambd2 = self.lambd2
+        if not np.isfinite(lambd2) or lambd2 <= 0.0:
+            if isinstance(tau, Real):
+                factor3 = 0.0
+            else:
+                factor3 = np.zeros_like(factor1)
+        else:
+            exp_tt0_2 = exp(-tau / lambd2)
+            factor3 = (1.0 - exp_tt0_2) / (tau / lambd2) - exp_tt0_2
+
+        if isinstance(tau, np.ndarray):
+            tau[zero_idx] = 0.0
+            factor1[zero_idx] = 1.0
+            factor2[zero_idx] = 0.0
+            if isinstance(factor3, np.ndarray):
+                factor3[zero_idx] = 0.0
+
         return factor1, factor2, factor3
 
-    def factor_matrix(self, T: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        """Factor loadings for time(s) T as matrix columns,
+    def factor_matrix(self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
+    ) -> Union[float, np.ndarray]:
+        """Factor loadings for time(s) (t, T) as matrix columns,
         including constant column (=1.0).
         """
-        factor1, factor2, factor3 = self.factors(T)
-        constant: Union[float, np.ndarray] = (
-            np.ones(T.size) if isinstance(T, np.ndarray) else 1.0
-        )
-        return np.stack([constant, factor1, factor2, factor3]).transpose()
+        factor1, factor2, factor3 = self.factors(T, t)
+        if isinstance(factor1, np.ndarray):
+            constant: np.ndarray = np.ones(factor1.size)
+            return np.stack([constant, factor1, factor2, factor3]).transpose()
+        else:
+            return np.array([[1.0, factor1, factor2, factor3]])
 
-    def zero(self, T: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        """Zero rate(s) of this curve at time(s) T."""
-        beta0 = self.beta0
-        beta1 = self.beta1
-        beta2 = self.beta2
-        beta3 = self.beta3
-        factor1, factor2, factor3 = self.factors(T)
-        res = beta0 + beta1 * factor1 + beta2 * factor2 + beta3 * factor3
-        return res
+    def zero(
+        self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
+    ) -> Union[float, np.ndarray]:
+        """Zero rate(s) y(t,T) for the Nelson–Siegel–Svensson curve."""
+        f1, f2, f3 = self.factors(T, t)
+        return self.beta1 + self.beta2 * f1 + self.beta3 * f2 + self.beta4 * f3
 
-    def __call__(self, T: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        """Zero rate(s) of this curve at time(s) T."""
-        return self.zero(T)
+    def __call__(
+        self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
+    ) -> Union[float, np.ndarray]:
+        """Alias of zero(T, t): zero rate(s) y(t,T)."""
+        return self.zero(T, t)
 
-    def forward(self, T: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        """Instantaneous forward rate(s) of this curve at time(s) T."""
-        exp_tt0 = exp(-T / self.tau1)
-        exp_tt1 = exp(-T / self.tau2)
-        return (
-            self.beta0
-            + self.beta1 * exp_tt0
-            + self.beta2 * exp_tt0 * T / self.tau1
-            + self.beta3 * exp_tt1 * T / self.tau2
-        )
+    def forward(
+        self, T: Union[float, np.ndarray], t: Union[float, np.ndarray] = 0.0
+    ) -> Union[float, np.ndarray]:
+        """Instantaneous forward rate f(t,T) for the Nelson–Siegel–Svensson curve."""
+        τ = self._as_tau(T, t)
+        if isinstance(τ, Real):
+            if τ < 0:
+                τ = 0.0
+            exp1 = exp(-τ / self.lambd1)
+            exp2 = exp(-τ / self.lambd2)
+            return (
+                self.beta1
+                + self.beta2 * exp1
+                + self.beta3 * exp1 * (τ / self.lambd1)
+                + self.beta4 * exp2 * (τ / self.lambd2)
+            )
+        else:
+            τ = np.asarray(τ, dtype=float)
+            τ_clip = np.maximum(τ, 0.0)
+            exp1 = exp(-τ_clip / self.lambd1)
+            exp2 = exp(-τ_clip / self.lambd2)
+            return (
+                self.beta1
+                + self.beta2 * exp1
+                + self.beta3 * exp1 * (τ_clip / self.lambd1)
+                + self.beta4 * exp2 * (τ_clip / self.lambd2)
+            )
