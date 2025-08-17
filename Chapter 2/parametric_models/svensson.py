@@ -40,16 +40,17 @@ class SvenssonCurve:
     ) -> Union[Tuple[float, float, float], Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Factor loadings for time(s) (t, T), excluding constant."""
         lambd1 = self.lambd1
+        lambd2 = self.lambd2
+        tau = self._as_tau(T, t)
 
         if not np.isfinite(lambd1) or lambd1 <= 0.0:
-            if isinstance(τ, Real):
+            if isinstance(tau, Real):
                 return 1.0, 0.0, 0.0
-            n = np.asarray(τ).size
+            n = np.asarray(tau).size
             ones = np.ones(n, dtype=float)
             zeros = np.zeros(n, dtype=float)
             return ones, zeros, zeros
 
-        tau = self._as_tau(T, t)
         if isinstance(tau, Real) and tau <= 0:
             return 1.0, 0.0, 0.0
         elif isinstance(tau, np.ndarray):
@@ -61,7 +62,6 @@ class SvenssonCurve:
         factor1 = (1.0 - exp_tt0_1) / (tau / lambd1)
         factor2 = factor1 - exp_tt0_1
 
-        lambd2 = self.lambd2
         if not np.isfinite(lambd2) or lambd2 <= 0.0:
             if isinstance(tau, Real):
                 factor3 = 0.0

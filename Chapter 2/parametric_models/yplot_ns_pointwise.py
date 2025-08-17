@@ -39,6 +39,8 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
 
     avg_rmse = float(np.nanmean(rmse_values))
     info = (
+        r"• Nelson--Siegel Fit"
+        "\n"
         r"• Pointwise; $\lambda_{init}=1.0$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
@@ -106,9 +108,9 @@ def main():
         {"csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv", "title": "EUR"}
     ]
 
-    out_dir = "ns_outputs"  # all outputs go here
+    out_dir = "ns_outputs"  
     for list in lists:
-        process_yield_csv(list["csv_path"], title=list["title"], out_dir=out_dir, lambd0=1.0)
+        process_yield_csv(list["csv_path"], title=list["title"], out_dir=out_dir, lambd0=1.0) # initial value of lambd
 
 if __name__ == "__main__":
     main()

@@ -82,8 +82,8 @@ def calibrate_ns_grid(
 def betas_svn_ols(
     lambd: Tuple[float, float], t: np.ndarray, y: np.ndarray
 ) -> Tuple[SvenssonCurve, Any]:
-    """Calculate the best-fitting beta-values given tau (= array of tau1
-    and tau2) for time-value pairs t and y and return a corresponding
+    """Calculate the best-fitting beta-values given lambd (= array of lambd1
+    and lambd2) for time-value pairs t and y and return a corresponding
     Svensson curve instance.
     """
     _assert_same_shape(t, y)
