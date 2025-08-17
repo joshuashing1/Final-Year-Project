@@ -38,14 +38,14 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, lambd
 
     avg_rmse = float(np.nanmean(rmse_values))
     info = (
-        r"• Svensson fit"
+        r"• Svensson Fit"
         "\n"
-        rf"• Pointwise OLS; $\lambda_1^{{init}}={lambd0[0]:.3g}$, $\lambda_2^{{init}}={lambd0[1]:.3g}$"
+        rf"• Pointwise OLS; $\lambda_{{init}}^{(1)}={lambd0[0]:.3g}$, $\lambda_{{init}}^{(2)}={lambd0[1]:.3g}$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.70, 0.80, info,
+        0.67, 0.72, info,
         transform=ax.transAxes,
         fontsize=14,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)

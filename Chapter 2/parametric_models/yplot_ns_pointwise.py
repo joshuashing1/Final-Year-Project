@@ -39,9 +39,9 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
 
     avg_rmse = float(np.nanmean(rmse_values))
     info = (
-        r"• Nelson--Siegel Fit"
+        r"• Nelson-Siegel Fit"
         "\n"
-        r"• Pointwise; $\lambda_{init}=1.0$"
+        r"• Pointwise OLS; $\lambda_{init}=1.0$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
