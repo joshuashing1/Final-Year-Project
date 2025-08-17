@@ -31,15 +31,20 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     for curve in fitted_curves:
         ax.plot(x_grid, curve(x_grid), linewidth=0.8)
 
-    ax.set_xlabel("Maturity (years) -- Pointwise: $\lambda_{{init}} = 0.0609$", fontsize=14)
+    ax.set_xlabel("Maturity (Years)", fontsize=14)
     ax.set_ylabel("Interest Rate (%)", fontsize=14)
     ax.set_title(title, fontsize=24, fontweight="bold", pad=12)
     ax.set_ylim(-2, 10)
     ax.set_xlim(left=0, right=x_max)
 
     avg_rmse = float(np.nanmean(rmse_values))
+    info = (
+        r"• Pointwise method: $\lambda_{init}=1.0$"
+        "\n"
+        f"• Avg. RMSE = {avg_rmse:.4f}"
+    )
     ax.text(
-        0.70, 0.92, f"Avg. RMSE = {avg_rmse:.4f}",
+        0.70, 0.80, info,
         transform=ax.transAxes,
         fontsize=14,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
