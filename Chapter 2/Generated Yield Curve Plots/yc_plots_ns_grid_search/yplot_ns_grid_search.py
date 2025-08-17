@@ -45,7 +45,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.70, 0.80, info,
+        0.61, 0.80, info,
         transform=ax.transAxes,
         fontsize=14,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
@@ -84,7 +84,7 @@ def plot_lambda_error_heatmap(lambdas: np.ndarray, err_mat: np.ndarray, title: s
     )
     ax.set_xlabel("λ (Decay)")
     ax.set_ylabel("Yield Curve Index")
-    ax.set_title(f"{title}: Root Mean Squared Error over λ")
+    ax.set_title(f"{title}: Root Mean Squared Error over λ-grid")
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label("RMSE")
     ax.grid(True, color="white", alpha=0.6, linewidth=0.7)
@@ -135,7 +135,7 @@ def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 1
     fig_path = f"{title}_ns_grid_search_curve.png"
     yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title=title, save_path=str(fig_path))
     
-    err_heatmap = np.vstack(rmse_lambda_rows)  # shape (n_rows, n_grid)
+    err_heatmap = np.vstack(rmse_lambda_rows)  
     heatmap_path = f"{title}_ns_lambda_rmse_heatmap.png"
     plot_lambda_error_heatmap(lambdas_for_heatmap, err_heatmap, title=title, save_path=heatmap_path)
 
