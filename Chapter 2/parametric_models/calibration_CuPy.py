@@ -1,5 +1,5 @@
-"""Implementation of the Nelson-Siegel and Svensson interest rate curve models.
-For details, see classes `NelsonSiegelCurve` and `SvenssonCurve`.
+"""Grid search calibration of a Svensson curve using GPU-accelerated computation with CuPy.
+For details of the logic, see function 'calibrate_svn_grid' from 'calibration'.
 """
 import numpy as np
 
@@ -8,8 +8,8 @@ from calibration import _assert_same_shape
 
 def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lambd1_upp: float, lambd2_lo: float, lambd2_upp: float, n_grid1: int, n_grid2: int):
     """
-    GPU-accelerated (if CuPy available) batched grid search for Svensson.
-    Computes OLS betas for every (λ1, λ2) in one batched pass and returns the best.
+    GPU-accelerated batched grid search for Svensson on CuDA v12.6.
+    Computes OLS betas for every (λ1, λ2).
     """
     _assert_same_shape(t, y)
     assert lambd1_lo > 0 and lambd1_upp > lambd1_lo and n_grid1 >= 2
@@ -19,7 +19,7 @@ def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lamb
         import cupy as cp
         xp = cp  # GPU
     except Exception:
-        xp = np  # CPU fallback
+        xp = np  # CPU backup
 
     t_x = xp.asarray(t, dtype=xp.float64)
     y_x = xp.asarray(y, dtype=xp.float64)
@@ -35,11 +35,7 @@ def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lamb
     eps = xp.finfo(t_x.dtype).eps
     tau_safe = xp.where(tau <= 0, eps, tau)
 
-    # Svensson basis per grid-point (broadcast to (G, n))
-    # f1(λ1) = (1 - e^{-τ/λ1}) / (τ/λ1)
-    # f2(λ1) = f1(λ1) - e^{-τ/λ1}
-    # f3(λ2) = (1 - e^{-τ/λ2}) / (τ/λ2) - e^{-τ/λ2}
-    a1 = tau_safe / L1g                    # (G, n)
+    a1 = tau_safe / L1g # Svensson basis per grid-point mapped to (G, n)
     e1 = xp.exp(-a1)
     f1 = (1 - e1) / a1
     f2 = f1 - e1
@@ -49,7 +45,6 @@ def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lamb
     f3 = (1 - e2) / a2 - e2
 
     # Design matrices X for each grid point: columns [1, f1, f2, f3]
-    # We won’t materialize a 3D tensor X; we’ll build XtX and XtY directly.
     ones = xp.ones_like(f1)
     # XtX = [ [Σ1], [Σf1], [Σf2], [Σf3] ]^T cross-products for each grid point → (G,4,4)
     def colsum(Z):  # sum over n
