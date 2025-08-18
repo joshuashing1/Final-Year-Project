@@ -91,7 +91,7 @@ def plot_rmse_heatmap(lambds: np.ndarray, err_mat: np.ndarray, title: str, save_
     )
     ax.set_xlabel("λ (Decay)", fontsize=22)
     ax.set_ylabel("Yield Curve Index", fontsize=22)
-    ax.set_title(f"{title}: Root Mean Squared Error over λ-grid", fontsize=25)
+    ax.set_title(f"{title}: RMSE over λ-grid for Nelson-Siegel", fontsize=25)
     ax.tick_params(axis="both", which="both", labelsize=20)
     
     cbar = plt.colorbar(im, ax=ax)
