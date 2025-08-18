@@ -19,9 +19,11 @@ def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lamb
 
     try:
         import cupy as cp
-        xp, on_gpu = cp  # GPU
+        xp = cp  # GPU
+        on_gpu = True
     except Exception:
-        xp, on_gpu = np  # CPU backup
+        xp = np  # CPU backup
+        on_gpu = False
 
     t_x = xp.asarray(t, dtype=xp.float64)
     y_x = xp.asarray(y, dtype=xp.float64)
