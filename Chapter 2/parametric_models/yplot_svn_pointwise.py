@@ -112,7 +112,7 @@ def main():
     ]
 
     for item in list:
-        process_yield_csv(item["csv_path"], title=item["title"], lambd0=(2.0, 5.0)) # initial value of lambds
+        process_yield_csv(item["csv_path"], title=item["title"], lambd0=(2.0, 5.0)) # initial values of lambds
 
 if __name__ == "__main__":
     main()
