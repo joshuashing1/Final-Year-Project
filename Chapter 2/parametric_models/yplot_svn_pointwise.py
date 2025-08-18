@@ -57,8 +57,9 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, lambd
     print(f"Saved figure to {save_path}")
 
 
-def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0=(2.0, 5.0)):
-    """Load one CSV, calibrate per row using Svensson (pointwise), save params & plot."""
+def process_yield_csv(csv_path: str, title: str, lambd0: tuple[float, float]):
+    """Load a single yield CSV dataset, calibrate per row, save parameters & plot.
+    """
     df = pd.read_csv(csv_path, header=0)
     maturities_years = parse_maturities(df.columns.tolist())
 
@@ -102,7 +103,7 @@ def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0=(2.0, 5.0)
 
 def main():
     """Configure the currency datasets to process."""
-    configs = [
+    list = [
         {"csv_path": r"Chapter 2\Data\USTreasury_Yield_Final.csv", "title": "USD"},
         {"csv_path": r"Chapter 2\Data\CGB_Yield_Final.csv",        "title": "CNY"},
         {"csv_path": r"Chapter 2\Data\GLC_Yield_Final.csv",        "title": "GBP"},
@@ -110,10 +111,8 @@ def main():
         {"csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv",        "title": "EUR"},
     ]
 
-    out_dir = "svn_outputs"
-
-    for cfg in configs:
-        process_yield_csv(cfg["csv_path"], title=cfg["title"], out_dir=out_dir, lambd0=(2.0, 5.0)) # initial value of lambds
+    for item in list:
+        process_yield_csv(item["csv_path"], title=item["title"], lambd0=(2.0, 5.0)) # initial value of lambds
 
 if __name__ == "__main__":
     main()

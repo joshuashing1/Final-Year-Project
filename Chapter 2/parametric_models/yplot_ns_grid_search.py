@@ -142,7 +142,7 @@ def process_yield_csv(csv_path: str, title: str, lambd_lo: float, lambd_upp: flo
 def main():
     """Configure the currency datasets to process.
     """
-    lists = [
+    list = [
         {"csv_path": r"Chapter 2\Data\USTreasury_Yield_Final.csv", "title": "USD"},
         {"csv_path": r"Chapter 2\Data\CGB_Yield_Final.csv", "title": "CNY"},
         {"csv_path": r"Chapter 2\Data\GLC_Yield_Final.csv", "title": "GBP"},
@@ -150,7 +150,7 @@ def main():
         {"csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv", "title": "EUR"}
     ]
 
-    for item in lists:
+    for item in list:
         process_yield_csv(item["csv_path"], title=item["title"], lambd_lo = 0.05, lambd_upp=5.0, n_grid=1000) # λ-grid inputs
 
 if __name__ == "__main__":

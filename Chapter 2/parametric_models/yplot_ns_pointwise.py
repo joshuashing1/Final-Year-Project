@@ -95,13 +95,13 @@ def process_yield_csv(csv_path: str, title: str, lambd0: float):
     print(f"Saved {len(out)} rows to {params_path}")
 
     fig_path = f"{title}_ns_pointwise_curve.png"
-    yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title=title, save_path=str(fig_path))
+    yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title=title, save_path=fig_path)
 
 
 def main():
     """Configure the currency datasets to process.
     """
-    lists = [
+    list = [
         {"csv_path": r"Chapter 2\Data\USTreasury_Yield_Final.csv", "title": "USD"},
         {"csv_path": r"Chapter 2\Data\CGB_Yield_Final.csv", "title": "CNY"},
         {"csv_path": r"Chapter 2\Data\GLC_Yield_Final.csv", "title": "GBP"},
@@ -109,8 +109,8 @@ def main():
         {"csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv", "title": "EUR"}
     ]
  
-    for list in lists:
-        process_yield_csv(list["csv_path"], title=list["title"], lambd0=1.0) # initial value of lambd
+    for item in list:
+        process_yield_csv(item["csv_path"], title=item["title"], lambd0=1.0) # initial value of lambd
 
 if __name__ == "__main__":
     main()
