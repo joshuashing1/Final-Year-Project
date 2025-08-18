@@ -21,7 +21,7 @@ def parse_maturities(labels):
     return np.array(out, dtype=float)
 
 
-def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_path):
+def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_path, lambd_lo, lambd_upp, n_grid):
     """Yield curve plot in accordance to tenor structure.
     """
     x_min = float(np.nanmin(maturities_years))
@@ -42,12 +42,12 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Nelson-Siegel Fit"
         "\n"
-        r"• Grid Search; $\lambda_{i} \in [0.05,5.0], i=1000$"
+        f"• Grid Search; $\lambda_i \in [{lambd_lo:.2f},{lambd_upp:.2f}],\ i={n_grid}$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.61, 0.80, info,
+        0.61, 0.75, info,
         transform=ax.transAxes,
         fontsize=14,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
@@ -59,30 +59,25 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     print(f"Saved figure to {save_path}")
     
 
-def rmse_over_lambdas(t: np.ndarray, y: np.ndarray, lambdas: np.ndarray) -> np.ndarray:
-    """RMSE(λ) for a single curve (t, y), refitting betas via OLS at each λ."""
-    out = np.empty(lambdas.size, dtype=float)
-    for j, lambd in enumerate(lambdas):
+def rmse_lambd_grid(t: np.ndarray, y: np.ndarray, lambds: np.ndarray) -> np.ndarray:
+    """RMSE(λ-grid) for a single curve (t, y), refitting betas via OLS at each λ."""
+    out = np.empty(lambds.size, dtype=float)
+    for j, lambd in enumerate(lambds):
         curve, _ = betas_ns_ols(lambd, t, y)
         yhat = curve(t)
         out[j] = np.sqrt(np.mean((yhat - y) ** 2))
     return out
 
 
-def plot_lambda_error_heatmap(lambdas: np.ndarray, err_mat: np.ndarray, title: str, save_path: str):
-    """
-    2D heatmap:
-      x-axis: lambdas (size n_grid)
-      y-axis: dataset row (size n_rows)
-      color: RMSE
-    err_mat must be shape (n_rows, n_grid).
+def plot_rmse_heatmap(lambds: np.ndarray, err_mat: np.ndarray, title: str, save_path: str):
+    """Heatmap plot for RMSE(λ-grid) across entire yield dataset.
     """
     fig, ax = plt.subplots(figsize=(11, 6))
     im = ax.imshow(
         err_mat,
         aspect="auto",
         origin="lower",
-        extent=[lambdas[0], lambdas[-1], 1, err_mat.shape[0]]
+        extent=[lambds[0], lambds[-1], 1, err_mat.shape[0]]
     )
     ax.set_xlabel("λ (Decay)")
     ax.set_ylabel("Yield Curve Index")
@@ -96,15 +91,16 @@ def plot_lambda_error_heatmap(lambdas: np.ndarray, err_mat: np.ndarray, title: s
     print(f"Saved heatmap to {save_path}")
 
 
-def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 1.0):
-    """Load a single CSV, calibrate per row, save params & plot."""
+def process_yield_csv(csv_path: str, title: str, lambd_lo: float, lambd_upp: float, n_grid: int):
+    """Load a single yield CSV dataset, calibrate per row, save parameters & plot.
+    """
     df = pd.read_csv(csv_path, header=0)
     maturities_years = parse_maturities(df.columns.tolist())
 
     results = []
     fitted_curves = []
-    lambdas_for_heatmap = np.linspace(0.05, 5.0, 200)
-    rmse_lambda_rows = []
+    heatmap_lambds = np.linspace(lambd_lo, lambd_upp, 200)
+    rmse_lambda_grid = []
 
     for i, row in df.iterrows():
         y = pd.to_numeric(row, errors="coerce").to_numpy(dtype=float)
@@ -112,7 +108,7 @@ def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 1
         t = maturities_years[mask]
         y_valid = y[mask]
 
-        curve, _, _ = calibrate_ns_grid(t, y)
+        curve, _, _ = calibrate_ns_grid(t, y_valid, lambd_lo, lambd_upp, n_grid)
 
         fitted_curves.append(curve)
         yhat = curve(t)
@@ -127,7 +123,7 @@ def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 1
             "rmse": rmse
         })
         
-        rmse_lambda_rows.append(rmse_over_lambdas(t, y_valid, lambdas_for_heatmap))
+        rmse_lambda_grid.append(rmse_lambd_grid(t, y_valid, heatmap_lambds))
 
     out = pd.DataFrame(results)
     params_path = f"{title}_ns_grid_search_betas.csv"
@@ -135,11 +131,12 @@ def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 1
     print(f"Saved {len(out)} rows to {params_path}")
 
     fig_path = f"{title}_ns_grid_search_curve.png"
-    yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title=title, save_path=str(fig_path))
+    yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title=title, save_path=fig_path, 
+        lambd_lo=lambd_lo, lambd_upp=lambd_upp, n_grid=n_grid)
     
-    err_heatmap = np.vstack(rmse_lambda_rows)  
+    err_heatmap = np.vstack(rmse_lambda_grid)  
     heatmap_path = f"{title}_ns_lambda_rmse_heatmap.png"
-    plot_lambda_error_heatmap(lambdas_for_heatmap, err_heatmap, title=title, save_path=heatmap_path)
+    plot_rmse_heatmap(heatmap_lambds, err_heatmap, title=title, save_path=heatmap_path)
 
 
 def main():
@@ -153,9 +150,8 @@ def main():
         {"csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv", "title": "EUR"}
     ]
 
-    out_dir = "ns_outputs"
     for item in lists:
-        process_yield_csv(item["csv_path"], title=item["title"], out_dir=out_dir, lambd0=1.0)
+        process_yield_csv(item["csv_path"], title=item["title"], lambd_lo = 0.05, lambd_upp=5.0, n_grid=1000) # λ-grid inputs
 
 if __name__ == "__main__":
     main()

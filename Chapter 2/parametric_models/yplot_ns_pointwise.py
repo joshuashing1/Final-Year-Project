@@ -58,8 +58,9 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     print(f"Saved figure to {save_path}")
 
 
-def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float):
-    """Load a single CSV, calibrate per row, save params & plot."""
+def process_yield_csv(csv_path: str, title: str, lambd0: float):
+    """Load a single yield CSV dataset, calibrate per row, save parameters & plot.
+    """
     df = pd.read_csv(csv_path, header=0)
     maturities_years = parse_maturities(df.columns.tolist())
 
@@ -107,10 +108,9 @@ def main():
         {"csv_path": r"Chapter 2\Data\SGS_Yield_Final.csv", "title": "SGD"},
         {"csv_path": r"Chapter 2\Data\ECB_Yield_Final.csv", "title": "EUR"}
     ]
-
-    out_dir = "ns_outputs"  
+ 
     for list in lists:
-        process_yield_csv(list["csv_path"], title=list["title"], out_dir=out_dir, lambd0=1.0) # initial value of lambd
+        process_yield_csv(list["csv_path"], title=list["title"], lambd0=1.0) # initial value of lambd
 
 if __name__ == "__main__":
     main()
