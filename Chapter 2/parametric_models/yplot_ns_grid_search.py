@@ -42,7 +42,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Nelson-Siegel Fit"
         "\n"
-        f"• Grid Search; $\lambda_i \in [{lambd_lo:.2f},{lambd_upp:.2f}],\ i={n_grid}$"
+        f"• Grid Search; $\lambda \in [{lambd_lo:.2f},{lambd_upp:.2f}],\ n={n_grid}$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )

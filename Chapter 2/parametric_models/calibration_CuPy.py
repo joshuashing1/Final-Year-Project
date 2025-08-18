@@ -1,5 +1,5 @@
 """Grid search calibration of a Svensson curve using GPU-accelerated computation with CuPy.
-For details of the logic, see function 'calibrate_svn_grid' from 'calibration'.
+For details of grid search logic, see function 'calibrate_svn_grid' from 'calibration'.
 Install package cupy-cuda12x (-based off relevant CuDA version).
 """
 import numpy as np
@@ -7,7 +7,8 @@ import numpy as np
 from svensson import SvenssonCurve
 from calibration import _assert_same_shape
 
-def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lambd1_upp: float, lambd2_lo: float, lambd2_upp: float, n_grid1: int, n_grid2: int):
+def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lambd1_upp: float, lambd2_lo: float, lambd2_upp: float,
+    n_grid1: int, n_grid2: int, return_surface: bool = False):
     """
     GPU-accelerated batched grid search for Svensson on CuDA v12.6.
     Computes OLS betas for every (λ1, λ2).
@@ -18,9 +19,9 @@ def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lamb
 
     try:
         import cupy as cp
-        xp = cp  # GPU
+        xp, on_gpu = cp  # GPU
     except Exception:
-        xp = np  # CPU backup
+        xp, on_gpu = np  # CPU backup
 
     t_x = xp.asarray(t, dtype=xp.float64)
     y_x = xp.asarray(y, dtype=xp.float64)
@@ -90,10 +91,8 @@ def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lamb
 
     # SSE = ||X beta - y||^2, compute via y^T y - 2 beta^T XtY + beta^T XtX beta
     yTy = float(np.sum(y * y))  # small scalar; OK on CPU
-    # move XtY, betas to xp; already are
     term1 = yTy
     term2 = 2.0 * xp.sum(betas * XtY, axis=1)
-    # beta^T XtX beta (batch)
     bXtX = xp.einsum('gij,gj->gi', XtX, betas)            # (G,4)
     term3 = xp.sum(betas * bXtX, axis=1)                  # (G,)
 
@@ -105,10 +104,16 @@ def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lamb
 
     # Bring betas back and build CPU curve object
     b = betas[min_idx]
-    if xp is not np:
-        b = b.get()
+    if on_gpu: b = b.get()
     beta1, beta2, beta3, beta4 = map(float, b.tolist())
-
     curve = SvenssonCurve(beta1, beta2, beta3, beta4, opt_l1, opt_l2)
-    opt_res = float(sse[min_idx].get() if xp is not np else sse[min_idx])
+    opt_res = float(sse[min_idx].get() if on_gpu else sse[min_idx])
+
+    if return_surface:
+        sse_grid = sse.reshape(n_grid1, n_grid2)
+        l1s_np   = l1s.get() if on_gpu else l1s
+        l2s_np   = l2s.get() if on_gpu else l2s
+        sse_np   = sse_grid.get() if on_gpu else sse_grid
+        return curve, opt_res, (opt_l1, opt_l2), (sse_np, np.asarray(l1s_np), np.asarray(l2s_np))
+
     return curve, opt_res, (opt_l1, opt_l2)

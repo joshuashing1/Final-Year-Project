@@ -42,9 +42,9 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Svensson Fit"
         "\n"
-        f"• Grid Search; $\lambda_1 \in [{lambd1_lo:.2f},{lambd1_upp:.2f}],\ n_1={int(n_grid1)}$"
+        f"• Grid Search; $\lambda_{{i}}^{1} \in [{lambd1_lo:.2f},{lambd1_upp:.2f}],\ n_1={int(n_grid1)}$"
         "\n"
-        f"                 $\lambda_2 \in [{lambd2_lo:.2f},{lambd2_upp:.2f}],\ n_2={int(n_grid2)}$"
+        f"                         $\lambda_{{j}}^{2} \in [{lambd2_lo:.2f},{lambd2_upp:.2f}],\ n_2={int(n_grid2)}$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
@@ -61,6 +61,50 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     print(f"Saved figure to {save_path}")
 
 
+def rmse_radius_profile_from_surface(sse_grid: np.ndarray,
+                                     l1s: np.ndarray,
+                                     l2s: np.ndarray,
+                                     n_obs: int,
+                                     r_bins: np.ndarray,
+                                     agg: str = "min") -> np.ndarray:
+    """Collapse 2D (λ1,λ2) SSE grid to 1D RMSE vs radius bins (min or mean within each bin)."""
+    L1, L2 = np.meshgrid(l1s, l2s, indexing="ij")
+    r = np.sqrt(L1**2 + L2**2)
+    rmse = np.sqrt(sse_grid / float(n_obs))
+
+    r_idx = np.digitize(r.ravel(), r_bins) - 1  # 0..len(r_bins)-2
+    rmse_flat = rmse.ravel()
+    prof = np.full(r_bins.size - 1, np.nan, dtype=float)
+    for k in range(prof.size):
+        mask = (r_idx == k)
+        if not np.any(mask):
+            continue
+        vals = rmse_flat[mask]
+        prof[k] = np.nanmin(vals) if agg == "min" else np.nanmean(vals)
+    return prof
+
+
+def plot_rmse_radius_heatmap(r_centers: np.ndarray, err_mat: np.ndarray, title: str, save_path: str):
+    fig, ax = plt.subplots(figsize=(11, 6))
+    im = ax.imshow(
+        err_mat,
+        aspect="auto",
+        origin="lower",
+        extent=[r_centers[0], r_centers[-1], 1, err_mat.shape[0]]
+    )
+    ax.set_xlabel(r"$\|\boldsymbol{\lambda}\|_2$  (Euclidean radius)")
+    ax.set_ylabel("Yield Curve Index")
+    ax.set_title(f"{title}: Root Mean Squared Error over λ-radius")
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label("RMSE")
+    ax.grid(True, color="white", alpha=0.6, linewidth=0.7)
+    fig.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    plt.show()
+    print(f"Saved heatmap to {save_path}")
+
+
+
 def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: float, lambd2_lo: float, lambd2_upp: float, n_grid1: int, n_grid2: int):
     """Load a single yield CSV dataset, calibrate per row, save parameters & plot.
     """
@@ -69,6 +113,13 @@ def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: f
 
     results = []
     fitted_curves = []
+    
+    r_min = 0.0
+    r_max = np.sqrt(lambd1_upp**2 + lambd2_upp**2)
+    n_radius = 200
+    r_bins = np.linspace(r_min, r_max, n_radius + 1)
+    r_centers = 0.5 * (r_bins[:-1] + r_bins[1:])
+    radius_profiles = []
 
     for i, row in df.iterrows():
         y = pd.to_numeric(row, errors="coerce").to_numpy(dtype=float)
@@ -78,7 +129,7 @@ def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: f
         if t.size == 0:
             continue
 
-        curve, _, _ = calibrate_svn_grid_CuPy(t, y_valid, lambd1_lo, lambd1_upp, lambd2_lo, lambd2_upp, n_grid1, n_grid2)
+        curve, _, _, (sse_grid, l1s, l2s) = calibrate_svn_grid_CuPy(t, y_valid, lambd1_lo, lambd1_upp, lambd2_lo, lambd2_upp, n_grid1, n_grid2, return_surface=True)
 
         fitted_curves.append(curve)
         yhat = curve(t)
@@ -94,6 +145,11 @@ def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: f
             "lambd2": float(curve.lambd2),
             "rmse": rmse
         })
+        
+        prof = rmse_radius_profile_from_surface(
+            sse_grid, l1s, l2s, n_obs=len(t), r_bins=r_bins, agg="min"  # or "mean"
+        )
+        radius_profiles.append(prof)
 
     out = pd.DataFrame(results)
 
@@ -104,6 +160,10 @@ def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: f
     fig_path = f"{title}_svn_grid_search_curve.png"
     yield_curves_plot(maturities_years, fitted_curves, out["rmse"], title=title, save_path=fig_path,
         lambd1_lo=lambd1_lo, lambd1_upp=lambd1_upp, lambd2_lo=lambd2_lo, lambd2_upp=lambd2_upp, n_grid1=n_grid1, n_grid2=n_grid2)
+    
+    err_heatmap = np.vstack(radius_profiles)   
+    heatmap_path = f"{title}_svn_lambda_radius_rmse_heatmap.png"
+    plot_rmse_radius_heatmap(r_centers, err_heatmap, title=title, save_path=heatmap_path)
 
 
 def main():
