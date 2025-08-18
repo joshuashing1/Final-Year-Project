@@ -44,7 +44,7 @@ def errorfn_ns_ols(lambd: float, t: np.ndarray, y: np.ndarray) -> float:
 
 
 def calibrate_ns_ptwise(
-    t: np.ndarray, y: np.ndarray, lambd0: float = 1.0
+    t: np.ndarray, y: np.ndarray, lambd0: float
 ) -> Tuple[NelsonSiegelCurve, Any]:
     """Pointwise calibration of a Nelson-Siegel curve to time-value pairs
     t and y, by optimizing lambd and chosing all betas
@@ -56,7 +56,7 @@ def calibrate_ns_ptwise(
     return curve, opt_res
 
 def calibrate_ns_grid(
-    t: np.ndarray, y: np.ndarray, lambd_lo: float = 0.05, lambd_upp: float = 5.0, n_grid: int = 1000
+    t: np.ndarray, y: np.ndarray, lambd_lo: float, lambd_upp: float, n_grid: int
 ) -> Tuple[NelsonSiegelCurve, Any]:
     """Grid search calibration of a Nelson-Siegel curve to time-value pairs
     t and y, by iterating various lambds and chosing all betas

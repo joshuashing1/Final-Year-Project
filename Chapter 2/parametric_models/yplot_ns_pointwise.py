@@ -58,7 +58,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     print(f"Saved figure to {save_path}")
 
 
-def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float = 1.0):
+def process_yield_csv(csv_path: str, title: str, out_dir: str, lambd0: float):
     """Load a single CSV, calibrate per row, save params & plot."""
     df = pd.read_csv(csv_path, header=0)
     maturities_years = parse_maturities(df.columns.tolist())
