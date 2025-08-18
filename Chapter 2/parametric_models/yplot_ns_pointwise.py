@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 from calibration import calibrate_ns_ptwise
 
+
 def parse_maturities(labels):
     """Convert labels 'M', 'Y' to years as floats.
     """
@@ -27,13 +28,23 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     x_max = float(np.nanmax(maturities_years))
     x_grid = np.linspace(x_min, x_max, 300)
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    DPI = 100
+    W_IN = 1573 / DPI
+    H_IN = 714  / DPI
+    fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
     for curve in fitted_curves:
         ax.plot(x_grid, curve(x_grid), linewidth=0.8)
+        
+    TICK_FS = 20
+    ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
+    ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
+    
+    ax.xaxis.get_offset_text().set_size(TICK_FS)
+    ax.yaxis.get_offset_text().set_size(TICK_FS)
 
-    ax.set_xlabel("Maturity (Years)", fontsize=14)
-    ax.set_ylabel("Interest Rate (%)", fontsize=14)
-    ax.set_title(title, fontsize=24, fontweight="bold", pad=12)
+    ax.set_xlabel("Maturity (Years)", fontsize=25)
+    ax.set_ylabel("Interest Rate (%)", fontsize=25)
+    ax.set_title(title, fontsize=30, fontweight="bold", pad=12)
     ax.set_ylim(-2, 10)
     ax.set_xlim(left=0, right=x_max)
 
@@ -48,7 +59,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     ax.text(
         0.70, 0.75, info,
         transform=ax.transAxes,
-        fontsize=14,
+        fontsize=20,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
     )
 
