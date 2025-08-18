@@ -117,3 +117,34 @@ def calibrate_svn_ptwise(
     opt_res = minimize(errorfn_svn_ols, x0=np.array(lambd0), args=(t, y), method = "BFGS")
     curve, lstsq_res = betas_svn_ols(opt_res.x, t, y)
     return curve, opt_res
+
+
+def calibrate_svn_grid(
+    t: np.ndarray, y: np.ndarray, lambd1_lo: float, lambd1_upp: float, lambd2_lo: float, lambd2_upp: float, n_grid1: int, n_grid2: int,
+) -> Tuple[SvenssonCurve, Any]:
+    """Grid search calibration of a Svensson curve to time-value pairs t and y.
+    Searches over (λ1, λ2) on a rectangular grid, refitting betas by OLS at each pair.
+    """
+    _assert_same_shape(t, y)
+    assert lambd1_lo > 0 and lambd1_upp > lambd1_lo and n_grid1 >= 2
+    assert lambd2_lo > 0 and lambd2_upp > lambd2_lo and n_grid2 >= 2
+
+    lambd1s = np.linspace(lambd1_lo, lambd1_upp, n_grid1)
+    lambd2s = np.linspace(lambd2_lo, lambd2_upp, n_grid2)
+
+    res_list = []
+    for l1 in lambd1s:
+        for l2 in lambd2s:
+            res = errorfn_svn_ols((float(l1), float(l2)), t, y)
+            res_list.append(float(res))
+
+    res_arr = np.asarray(res_list, dtype=float).reshape(n_grid1, n_grid2)
+    flat_idx = int(np.argmin(res_arr))
+    i1, i2 = np.unravel_index(flat_idx, res_arr.shape)
+
+    opt_lambd1 = float(lambd1s[i1])
+    opt_lambd2 = float(lambd2s[i2])
+    opt_curve, _ = betas_svn_ols((opt_lambd1, opt_lambd2), t, y)
+    opt_res = float(res_arr[i1, i2])
+
+    return opt_curve, opt_res, (opt_lambd1, opt_lambd2)
