@@ -1,5 +1,6 @@
 """Grid search calibration of a Svensson curve using GPU-accelerated computation with CuPy.
 For details of the logic, see function 'calibrate_svn_grid' from 'calibration'.
+Install package cupy-cuda12x (-based off relevant CuDA version).
 """
 import numpy as np
 
