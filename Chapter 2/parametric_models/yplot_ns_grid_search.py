@@ -28,13 +28,23 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     x_max = float(np.nanmax(maturities_years))
     x_grid = np.linspace(x_min, x_max, 300)
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    DPI = 100
+    W_IN = 1573 / DPI
+    H_IN = 750  / DPI
+    fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
     for curve in fitted_curves:
         ax.plot(x_grid, curve(x_grid), linewidth=0.8)
 
-    ax.set_xlabel("Maturity (Years)", fontsize=14)
-    ax.set_ylabel("Interest Rate (%)", fontsize=14)
-    ax.set_title(title, fontsize=24, fontweight="bold", pad=12)
+    TICK_FS = 27
+    ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
+    ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
+    
+    ax.xaxis.get_offset_text().set_size(TICK_FS)
+    ax.yaxis.get_offset_text().set_size(TICK_FS)
+    
+    ax.set_xlabel("Maturity (Years)", fontsize=32)
+    ax.set_ylabel("Interest Rate (%)", fontsize=32)
+    ax.set_title(title, fontsize=37, fontweight="bold", pad=12)
     ax.set_ylim(-2, 10)
     ax.set_xlim(left=0, right=x_max)
 
@@ -42,14 +52,14 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Nelson-Siegel Fit"
         "\n"
-        f"• Grid Search; $\lambda \in [{lambd_lo:.2f},{lambd_upp:.2f}],\ n={n_grid}$"
+        f"• Grid Search; $\lambda_i \in [{lambd_lo:.2f},{lambd_upp:.2f}]$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.61, 0.75, info,
+        0.58, 0.75, info,
         transform=ax.transAxes,
-        fontsize=14,
+        fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
     )
 
@@ -79,11 +89,15 @@ def plot_rmse_heatmap(lambds: np.ndarray, err_mat: np.ndarray, title: str, save_
         origin="lower",
         extent=[lambds[0], lambds[-1], 1, err_mat.shape[0]]
     )
-    ax.set_xlabel("λ (Decay)")
-    ax.set_ylabel("Yield Curve Index")
-    ax.set_title(f"{title}: Root Mean Squared Error over λ-grid")
+    ax.set_xlabel("λ (Decay)", fontsize=22)
+    ax.set_ylabel("Yield Curve Index", fontsize=22)
+    ax.set_title(f"{title}: Root Mean Squared Error over λ-grid", fontsize=25)
+    ax.tick_params(axis="both", which="both", labelsize=20)
+    
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label("RMSE")
+    cbar.set_label("RMSE", fontsize=22)
+    cbar.ax.tick_params(labelsize=20)
+    
     ax.grid(True, color="white", alpha=0.6, linewidth=0.7)
     fig.tight_layout()
     plt.savefig(save_path, dpi=200)
