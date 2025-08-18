@@ -30,7 +30,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
 
     DPI = 100
     W_IN = 1573 / DPI
-    H_IN = 714  / DPI
+    H_IN = 800  / DPI
     fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
     for curve in fitted_curves:
         ax.plot(x_grid, curve(x_grid), linewidth=0.8)
@@ -57,7 +57,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.70, 0.75, info,
+        0.60, 0.75, info,
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
