@@ -26,13 +26,23 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, lambd
     x_max = float(np.nanmax(maturities_years))
     x_grid = np.linspace(x_min, x_max, 300)
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    DPI = 100
+    W_IN = 1573 / DPI
+    H_IN = 750  / DPI
+    fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
     for curve in fitted_curves:
         ax.plot(x_grid, curve(x_grid), linewidth=0.8)
 
-    ax.set_xlabel("Maturity (Years)", fontsize=14)
-    ax.set_ylabel("Interest Rate (%)", fontsize=14)
-    ax.set_title(title, fontsize=24, fontweight="bold", pad=12)
+    TICK_FS = 27
+    ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
+    ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
+    
+    ax.xaxis.get_offset_text().set_size(TICK_FS)
+    ax.yaxis.get_offset_text().set_size(TICK_FS)
+
+    ax.set_xlabel("Maturity (Years)", fontsize=32)
+    ax.set_ylabel("Interest Rate (%)", fontsize=32)
+    ax.set_title(title, fontsize=37, fontweight="bold", pad=12)
     ax.set_xlim(left=0, right=x_max)
     ax.set_ylim(-2, 10)
 
@@ -40,14 +50,16 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, lambd
     info = (
         r"• Svensson Fit"
         "\n"
-        rf"• Pointwise OLS; $\lambda_{{init}}^{(1)}={lambd0[0]:.1f}$, $\lambda_{{init}}^{(2)}={lambd0[1]:.1f}$"
+        rf"• Pointwise OLS; $\lambda_{{init}}^{(1)}={lambd0[0]:.1f}$"
+        "\n"
+        f"                           $\lambda_{{init}}^{(2)}={lambd0[1]:.1f}$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.64, 0.75, info,
+        0.63, 0.68, info,
         transform=ax.transAxes,
-        fontsize=14,
+        fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
     )
 
