@@ -50,23 +50,19 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, lambd
     info = (
         r"• Svensson Fit"
         "\n"
-        rf"• Pointwise OLS; $\lambda_{{init}}^{(1)}={lambd0[0]:.1f}$"
-        "\n"
-        f"                           $\lambda_{{init}}^{(2)}={lambd0[1]:.1f}$"
-        "\n"
-        f"• Avg. RMSE = {avg_rmse:.4f}"
+        r"• Pointwise OLS"
     )
     ax.text(
-        0.61, 0.68, info,
+        0.77, 0.80, info,
         transform=ax.transAxes,
         fontsize=25,
-        bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
+        bbox=dict(boxstyle="square", facecolor="white", edgecolor="darkblue", linewidth=1.5)
     )
 
     fig.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.show()
-    print(f"Saved figure to {save_path}")
+    print(f"Saved figure to {save_path} with average RMSE {avg_rmse}")
 
 
 def process_yield_csv(csv_path: str, title: str, lambd0: tuple[float, float]):

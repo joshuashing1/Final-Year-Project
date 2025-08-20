@@ -52,10 +52,10 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Nelson-Siegel Fit"
         "\n"
-        f"• Grid Search OLS$"
+        r"• Grid Search OLS"
     )
     ax.text(
-        0.56, 0.75, info,
+        0.74, 0.80, info,
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="darkblue", linewidth=1.5)
@@ -64,7 +64,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     fig.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.show()
-    print(f"Saved figure to {save_path}")
+    print(f"Saved figure to {save_path} with average RMSE {avg_rmse}")
     
 
 def rmse_lambd_grid(t: np.ndarray, y: np.ndarray, lambds: np.ndarray) -> np.ndarray:

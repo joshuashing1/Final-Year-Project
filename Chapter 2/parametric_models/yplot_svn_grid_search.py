@@ -52,23 +52,19 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Svensson Fit"
         "\n"
-        f"• Grid Search; $\lambda_{{i}}^{1} \in [{lambd1_lo:.2f},{lambd1_upp:.2f}]$"
-        "\n"
-        f"                        $\lambda_{{j}}^{2} \in [{lambd2_lo:.2f},{lambd2_upp:.2f}]$"
-        "\n"
-        f"• Avg. RMSE = {avg_rmse:.4f}"
+        r"• Grid Search OLS"
     )
     ax.text(
-        0.56, 0.68, info,
+        0.74, 0.80, info,
         transform=ax.transAxes,
         fontsize=25,
-        bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
+        bbox=dict(boxstyle="square", facecolor="white", edgecolor="darkblue", linewidth=1.5)
     )
 
     fig.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.show()
-    print(f"Saved figure to {save_path}")
+    print(f"Saved figure to {save_path} with average RMSE {avg_rmse}")
 
 
 def rmse_radius_profile_from_surface(sse_grid: np.ndarray,
