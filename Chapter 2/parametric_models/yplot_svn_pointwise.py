@@ -57,7 +57,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, lambd
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.63, 0.68, info,
+        0.61, 0.68, info,
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)

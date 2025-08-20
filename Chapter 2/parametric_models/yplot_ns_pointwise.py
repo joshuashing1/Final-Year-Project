@@ -52,12 +52,12 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Nelson-Siegel Fit"
         "\n"
-        r"• Pointwise OLS; $\lambda_{init}=1.0$"
+        r"• Pointwise OLS; $\lambda_{init}=0.0609$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.63, 0.75, info,
+        0.61, 0.75, info,
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
@@ -121,7 +121,7 @@ def main():
     ]
  
     for item in datasets:
-        process_yield_csv(item["csv_path"], title=item["title"], lambd0=1.0) # initial value of lambd
+        process_yield_csv(item["csv_path"], title=item["title"], lambd0=0.0609) # initial value of lambd
 
 if __name__ == "__main__":
     main()

@@ -52,12 +52,12 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Nelson-Siegel Fit"
         "\n"
-        f"• Grid Search; $\lambda_i \in [{lambd_lo:.2f},{lambd_upp:.2f}]$"
+        f"• Grid Search; $\lambda_i \in [{lambd_lo:.3f},{lambd_upp:.3f}]$"
         "\n"
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.58, 0.75, info,
+        0.56, 0.75, info,
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
@@ -165,7 +165,7 @@ def main():
     ]
 
     for item in datasets:
-        process_yield_csv(item["csv_path"], title=item["title"], lambd_lo = 0.05, lambd_upp=5.0, n_grid=1000) # λ-grid inputs
+        process_yield_csv(item["csv_path"], title=item["title"], lambd_lo = 0.027, lambd_upp=1.0, n_grid=1000) # λ-grid inputs
 
 if __name__ == "__main__":
     main()

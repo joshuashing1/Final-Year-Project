@@ -55,6 +55,7 @@ def calibrate_ns_ptwise(
     curve, lstsq_res = betas_ns_ols(opt_res.x[0], t, y)
     return curve, opt_res
 
+
 def calibrate_ns_grid(
     t: np.ndarray, y: np.ndarray, lambd_lo: float, lambd_upp: float, n_grid: int
 ) -> Tuple[NelsonSiegelCurve, Any]:

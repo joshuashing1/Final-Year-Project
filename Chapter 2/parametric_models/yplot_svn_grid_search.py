@@ -59,7 +59,7 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
         f"• Avg. RMSE = {avg_rmse:.4f}"
     )
     ax.text(
-        0.58, 0.68, info,
+        0.56, 0.68, info,
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
@@ -191,7 +191,7 @@ def main():
     ]
 
     for item in datasets:
-        process_yield_csv(item["csv_path"], title=item["title"], lambd1_lo=0.05, lambd1_upp=5.00, lambd2_lo=0.05, lambd2_upp=5.00, n_grid1=1000, n_grid2=1000) # λ1 x λ2-grid inputs
+        process_yield_csv(item["csv_path"], title=item["title"], lambd1_lo=0.02, lambd1_upp=2.0, lambd2_lo=0.02, lambd2_upp=2.0, n_grid1=1000, n_grid2=1000) # λ1 x λ2-grid inputs
 
 if __name__ == "__main__":
     main()
