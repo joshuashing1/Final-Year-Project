@@ -52,15 +52,13 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     info = (
         r"• Nelson-Siegel Fit"
         "\n"
-        f"• Grid Search; $\lambda_i \in [{lambd_lo:.2f},{lambd_upp:.2f}]$"
-        "\n"
-        f"• Avg. RMSE = {avg_rmse:.4f}"
+        f"• Grid Search OLS$"
     )
     ax.text(
         0.56, 0.75, info,
         transform=ax.transAxes,
         fontsize=25,
-        bbox=dict(boxstyle="square", facecolor="white", edgecolor="red", linewidth=1.5)
+        bbox=dict(boxstyle="square", facecolor="white", edgecolor="darkblue", linewidth=1.5)
     )
 
     fig.tight_layout()
