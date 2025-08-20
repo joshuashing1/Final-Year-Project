@@ -191,7 +191,7 @@ def main():
     ]
 
     for item in datasets:
-        process_yield_csv(item["csv_path"], title=item["title"], lambd1_lo=0.02, lambd1_upp=2.0, lambd2_lo=0.02, lambd2_upp=2.0, n_grid1=1000, n_grid2=1000) # λ1 x λ2-grid inputs
+        process_yield_csv(item["csv_path"], title=item["title"], lambd1_lo=0.05, lambd1_upp=5.05, lambd2_lo=0.05, lambd2_upp=5.05, n_grid1=1000, n_grid2=1000) # λ1 x λ2-grid inputs
 
 if __name__ == "__main__":
     main()
