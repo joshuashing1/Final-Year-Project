@@ -1,7 +1,10 @@
-import numpy as np
-# import sys, os
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+""" 
+Append project root 'Chapter 2/' into Python's import search path.
+"""
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import numpy as np
 from autoencoder import AutoencoderNN              
 from parametric_models.svensson import SvenssonCurve
 
