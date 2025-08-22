@@ -1,8 +1,8 @@
 """ 
 Append project root 'Chapter 2/' into Python's import search path.
 """
-import sys, os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# import sys, os
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 from autoencoder import AutoencoderNN              
