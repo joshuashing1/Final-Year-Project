@@ -10,7 +10,6 @@ def drelu(x):
     return grad
 
 # ---------- Dense layer ----------
-@staticmethod
 class Dense:
     def __init__(self, in_dim, out_dim, activation=None, rng=None):
         self.in_dim, self.out_dim = in_dim, out_dim

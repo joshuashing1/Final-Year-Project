@@ -1,5 +1,7 @@
-# train_and_apply.py
 import numpy as np
+# import sys, os
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from autoencoder import AutoencoderNN              
 from parametric_models.svensson import SvenssonCurve
 
