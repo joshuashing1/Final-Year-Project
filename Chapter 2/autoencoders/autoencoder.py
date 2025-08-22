@@ -14,21 +14,25 @@ def drelu(x):
 class Dense:
     def __init__(self, in_dim, out_dim, activation=None, rng=None):
         self.in_dim, self.out_dim = in_dim, out_dim
+        self.activation = activation
+        
         if rng is None:
             rng = np.random.default_rng(0)
-        # Xavier/Glorot uniform init
-        limit = np.sqrt(6.0 / (in_dim + out_dim))
-        self.W = rng.uniform(-limit, limit, size=(in_dim, out_dim)).astype(np.float32)
+            
+        if self.activation == "relu":
+            self.W = rng.normal(0.0, np.sqrt(2.0 / in_dim), size=(in_dim, out_dim)).astype(np.float32)
+        else:
+            limit = np.sqrt(6.0 / (in_dim + out_dim))
+            self.W = rng.uniform(-limit, limit, size=(in_dim, out_dim)).astype(np.float32)
+
         self.b = np.zeros(out_dim, dtype=np.float32)
-        self.activation = activation  # "relu" or None
 
         # Adam state
         self.mW = np.zeros_like(self.W); self.vW = np.zeros_like(self.W)
         self.mb = np.zeros_like(self.b); self.vb = np.zeros_like(self.b)
 
-        # caches for backprop
-        self.x = None  # input
-        self.z = None  # pre-activation
+        self.x = None  
+        self.z = None  
 
     def forward(self, x):
         self.x = x
