@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from calibration import _assert_same_shape
 
 def parse_maturities(labels):
     """Convert labels 'M', 'Y' to years as floats.
@@ -24,7 +25,7 @@ class LinearInterpolant:
     def __init__(self, t, y):
         t = np.asarray(t, dtype=float)
         y = np.asarray(y, dtype=float)
-        assert t.shape == y.shape, "Mismatching shapes of time and values"
+        _assert_same_shape(t, y)
         order = np.argsort(t)
         self.t = t[order]
         self.y = y[order]
