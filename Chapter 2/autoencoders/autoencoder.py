@@ -50,7 +50,6 @@ class Dense:
         dx = grad_z @ self.W.T
         return dx, dW, db
 
-# ---------- Autoencoder: 30, 30, 13, 30, 30 ----------
 class AutoencoderNN:
     """
     Encoder: param_in -> 30 -> 30 -> 13
@@ -58,36 +57,35 @@ class AutoencoderNN:
     All hidden activations = ReLU
     Output layer = linear (for reconstruction with MSE).
     """
-    # network architecture
+    
     def __init__(self, param_in, rng=None):
         self.param_in = int(param_in)
-        # Encoder
+        
         self.e1 = Dense(self.param_in, 30, activation="relu", rng=rng)
         self.e2 = Dense(30, 30, activation="relu", rng=rng)
-        self.e3 = Dense(30, 13, activation="relu", rng=rng)  # latent
-        # Decoder
+        self.e3 = Dense(30, 13, activation="relu", rng=rng)  
+        
         self.d1 = Dense(13, 30, activation="relu", rng=rng)
         self.d2 = Dense(30, 30, activation="relu", rng=rng)
-        self.out = Dense(30, self.param_in, activation=None, rng=rng)  # linear reconstruction
-
-    # ----- forward passes -----
+        self.out = Dense(30, self.param_in, activation=None, rng=rng)  
+    
     def encode(self, x):
         x = self.e1.forward(x)
         x = self.e2.forward(x)
         z = self.e3.forward(x)
-        return z  # latent (13-d)
+        return z  
 
     def decode(self, z):
         x = self.d1.forward(z)
         x = self.d2.forward(x)
         x = self.out.forward(x)
-        return x  # reconstruction
+        return x  
 
     def forward(self, x):
         return self.decode(self.encode(x))
 
     # ----- loss -----
-    def mse_loss(self, pred, y):
+    def loss_fn(self, pred, y):
         diff = pred - y
         return (diff**2).mean(), (2.0 / len(y)) * diff
 
@@ -124,7 +122,7 @@ class AutoencoderNN:
 
                 # forward
                 pred = self.forward(xb)
-                loss, dL_dpred = self.mse_loss(pred, xb)  # AE: target = input
+                loss, dL_dpred = self.loss_fn(pred, xb)  
                 running += loss * len(xb)
 
                 # backward: decoder first
@@ -153,7 +151,7 @@ class AutoencoderNN:
                 self.step_adam(grads, lr, t)
 
             if verbose:
-                print(f"Epoch {ep:03d} | Recon MSE: {running / n:.6f}")
+                print(f"Epoch {ep:03d} | Loss: {running / n:.6f}")
 
     # ----- convenience -----
     def get_latent(self, X):
