@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from calibration import _assert_same_shape
+from parametric_models.calibration import _assert_same_shape
 
 def parse_maturities(labels):
     """Convert labels 'M', 'Y' to years as floats.
