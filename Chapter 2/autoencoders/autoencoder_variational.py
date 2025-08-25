@@ -3,7 +3,7 @@ import numpy as np
 from nn_fn import Dense
 
 
-class BetaVAE_NP:
+class Variational_NN:
     """
     NumPy β-VAE (MLP) with the same structure and optimizer style as your AE:
 

@@ -14,23 +14,23 @@ class AutoencoderNN:
         self.param_in = param_in
         self.activation = activation
         
-        self.e1 = Dense(self.param_in, 30, activation=self.activation, rng=rng)
-        self.e2 = Dense(30, 30, activation=self.activation, rng=rng)
-        self.e3 = Dense(30, 13, activation=self.activation, rng=rng)  
+        self.encoder1 = Dense(self.param_in, 30, activation=self.activation, rng=rng)
+        self.encoder2 = Dense(30, 30, activation=self.activation, rng=rng)
+        self.encoder3 = Dense(30, 13, activation=self.activation, rng=rng)  
         
-        self.d1 = Dense(13, 30, activation=self.activation, rng=rng)
-        self.d2 = Dense(30, 30, activation=self.activation, rng=rng)
+        self.decoder1 = Dense(13, 30, activation=self.activation, rng=rng)
+        self.decoder2 = Dense(30, 30, activation=self.activation, rng=rng)
         self.out = Dense(30, self.param_in, activation=None, rng=rng)  
     
     def encode(self, x: float):
-        x = self.e1.forward(x)
-        x = self.e2.forward(x)
-        z = self.e3.forward(x)
+        x = self.encoder1.forward(x)
+        x = self.encoder2.forward(x)
+        z = self.encoder3.forward(x)
         return z  
 
     def decode(self, z: float):
-        x = self.d1.forward(z)
-        x = self.d2.forward(x)
+        x = self.decoder1.forward(z)
+        x = self.decoder2.forward(x)
         x = self.out.forward(x)
         return x  
 
@@ -42,7 +42,7 @@ class AutoencoderNN:
         return (diff**2).mean(), (2.0 / len(y)) * diff
 
     def parameters(self):
-        return [self.e1, self.e2, self.e3, self.d1, self.d2, self.out]
+        return [self.encoder1, self.encoder2, self.encoder3, self.decoder1, self.decoder2, self.out]
 
     def step_adam(self, grads, lr, t, beta1=0.9, beta2=0.999, eps=1e-8):
         for layer, (dW, db) in zip(self.parameters(), grads):
@@ -78,17 +78,17 @@ class AutoencoderNN:
                 g = dL_dpred
                 g, dW_out, db_out = self.out.backward(g)
                 grads.append((dW_out, db_out))
-                g, dW_d2, db_d2 = self.d2.backward(g)
-                grads.append((dW_d2, db_d2))
-                g, dW_d1, db_d1 = self.d1.backward(g)
-                grads.append((dW_d1, db_d1))
+                g, dW_decoder2, db_decoder2 = self.decoder2.backward(g)
+                grads.append((dW_decoder2, db_decoder2))
+                g, dW_decoder1, db_decoder1 = self.decoder1.backward(g)
+                grads.append((dW_decoder1, db_decoder1))
 
-                g, dW_e3, db_e3 = self.e3.backward(g)
-                grads.append((dW_e3, db_e3))
-                g, dW_e2, db_e2 = self.e2.backward(g)
-                grads.append((dW_e2, db_e2))
-                _, dW_e1, db_e1 = self.e1.backward(g)
-                grads.append((dW_e1, db_e1))
+                g, dW_encoder3, db_encoder3 = self.encoder3.backward(g)
+                grads.append((dW_encoder3, db_encoder3))
+                g, dW_encoder2, db_encoder2 = self.encoder2.backward(g)
+                grads.append((dW_encoder2, db_encoder2))
+                _, dW_encoder1, db_encoder1 = self.encoder1.backward(g)
+                grads.append((dW_encoder1, db_encoder1))
 
                 grads = grads[::-1]
 
