@@ -1,63 +1,71 @@
-"""Main script for running Autoencoder training.
-"""
+# fit_real_yields.py
 import numpy as np
-from calibration import svn_gen, save_ae, load_ae
-from autoencoder import AutoencoderNN
+import pandas as pd
+from offline_training_ae import AEPretrainer, TENORS
 
-tenors = {
-    "SGD": [3/12, 6/12, 1, 2, 5, 10, 15, 20, 30],
-    "EUR": [3/12, 6/12] + list(range(1, 31)),
-    "USD": [1/12, 3/12, 6/12, 1, 2, 3, 5, 7, 10, 20, 30],
-    "CNY": [3/12, 6/12, 1, 3, 5, 7, 10, 30],
-    "GBP": [m/12 for m in range(1, 12)] + [1 + 0.5*k for k in range(0, 2*26 - 2 + 1)],
+# ---- EDIT THESE ----
+CSV_PATH = r"Chapter 2\Data\USTreasury_Yield_Final.csv"
+CKPT_PATH = "ae_weights.npz"     # the weights you saved after pretraining
+CURRENCY = "USD"                 # grid selector only
+ACT = "relu"                     # must match the activation used when training
+# RANGES aren't used during inference, but AEPretrainer validates them; reuse training ones or any valid positives for lambdas:
+RANGES = {
+    "beta1": (0.0, 1.0), "beta2": (-1.0, 1.0), "beta3": (-1.0, 1.0), "beta4": (-1.0, 1.0),
+    "lambd1": (0.1, 5.0), "lambd2": (0.1, 5.0)
 }
+# Column names in the CSV matching the USD grid order [1m, 3m, 6m, 1y, 2y, 3y, 5y, 7y, 10y, 20y, 30y]
+USD_COLS = ["1 Mo","3 Mo","6 Mo","1 Yr","2 Yr","3 Yr","5 Yr","7 Yr","10 Yr","20 Yr","30 Yr"]
+DATE_COL = "Date"
+OUT_CSV = "USTreasury_AE_reconstructed.csv"
+# --------------------
 
-# currency-specific sampling ranges 
-svn_param = {
-    "beta1":  (-0.01, 0.06),
-    "beta2":  (-0.05, 0.05),
-    "beta3":  (-0.05, 0.05),
-    "beta4":  (-0.05, 0.05),
-    "lambd1": ( 0.05, 5.00),
-    "lambd2": ( 0.05, 5.00),
-}
+def _ensure_decimal_units(arr: np.ndarray) -> np.ndarray:
+    """If values look like percentages (>1.0), convert to decimals."""
+    finite = arr[np.isfinite(arr)]
+    if finite.size == 0:
+        return arr
+    med = np.median(np.abs(finite))
+    return arr / 100.0 if med > 1.0 else arr
+
+def fit_csv_with_ae():
+    # Set up the pretrainer just to get the grid size and to load the model
+    trainer = AEPretrainer(currency=CURRENCY, act=ACT, ranges=RANGES, verbose=True, ckpt_path=CKPT_PATH)
+    trainer.load()  # loads the pre-trained weights into trainer.model
+
+    # Load the dataset
+    df = pd.read_csv(CSV_PATH)
+
+    # Basic checks
+    for col in [DATE_COL] + USD_COLS:
+        if col not in df.columns:
+            raise ValueError(f"Missing column in CSV: {col}")
+
+    # Build matrix X in the exact grid order
+    X_raw = df[USD_COLS].to_numpy(dtype=np.float32)
+    X = _ensure_decimal_units(X_raw)
+
+    # Optional: drop rows with NaNs (or you can forward-fill instead)
+    mask_ok = np.isfinite(X).all(axis=1)
+    if not mask_ok.all():
+        dropped = (~mask_ok).sum()
+        print(f"Dropping {dropped} rows with NaNs.")
+    dates = df.loc[mask_ok, DATE_COL].to_numpy()
+    X = X[mask_ok]
+
+    # Reconstruct each curve and compute per-row MSE
+    Xhat = np.vstack([trainer.reconstruct_real(x) for x in X])
+    mse = ((Xhat - X) ** 2).mean(axis=1)
+
+    # Save results
+    out = pd.DataFrame({DATE_COL: dates})
+    for i, col in enumerate(USD_COLS):
+        out[f"y_{col}"] = X[:, i]
+        out[f"yhat_{col}"] = Xhat[:, i]
+    out["mse"] = mse
+    out.to_csv(OUT_CSV, index=False)
+
+    print(f"Saved reconstructed curves to {OUT_CSV}")
+    print(f"MSE summary → mean: {mse.mean():.8f} | median: {np.median(mse):.8f} | max: {mse.max():.8f}")
 
 if __name__ == "__main__":
-    # 1) Maturity grid (must match your real data order)
-    taus = np.array([1/12, 1/3, 0.5, 1, 2, 3, 5, 7, 10, 20, 30], dtype=np.float32) # modify term structure according to currency
-    m = len(taus)
-
-    # 2) Generate Svensson synthetic dataset (raw rates, no standardization)
-    ranges = {
-        "beta1":  (-0.01, 0.06),  # long-run level
-        "beta2":  (-0.05, 0.05),  # slope
-        "beta3":  (-0.05, 0.05),  # curvature 1
-        "beta4":  (-0.05, 0.05),  # curvature 2
-        "lambd1": ( 0.05, 5.00),  # time constants > 0
-        "lambd2": ( 0.05, 5.00),
-    }
-    X_syn = svn_gen(
-        n_samples=40000, taus=taus, ranges=ranges, noise_std=0.0005, seed=42
-    )
-
-    # 3) Train autoencoder directly on raw rates
-    ae = AutoencoderNN(param_in=m, activation= "relu") # "relu", "sigmoid", "tanh"
-    ae.train(X_syn, epochs=80, batch_size=256, lr=1e-3, shuffle=True, verbose=True)
-
-    # 4) Save model (no scaler file anymore)
-    save_ae(ae, "ae_weights.npz", include_optimizer=False)
-
-    # -------- Later (or in another script) --------
-    # Load for inference on real data (must use same maturity grid + order)
-    ae2 = AutoencoderNN(param_in=m, activation=ACT)  # keep activation consistent with training
-    load_ae(ae2, "ae_weights.npz", include_optimizer=False)
-
-    # Example real curve (replace with your actual quotes; shape [m])
-    x_real = np.array([0.021, 0.022, 0.023, 0.024, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029],
-                      dtype=np.float32)
-
-    # 5) Predict (reconstruct) on real data directly (no z-scoring)
-    xhat_real = ae2.reconstruct(x_real[None, :])[0]
-
-    print("Input real:", x_real)
-    print("Reconstructed:", xhat_real)
+    fit_csv_with_ae()

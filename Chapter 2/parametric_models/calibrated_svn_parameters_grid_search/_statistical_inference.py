@@ -13,7 +13,7 @@ def compute_stats(df: pd.DataFrame):
     out = {}
 
     # betas: direct quartiles
-    for b in ["beta1", "beta2", "beta3"]:
+    for b in ["beta1", "beta2", "beta3", "beta4"]:
         q1 = np.percentile(df[b].values, 25)
         q3 = np.percentile(df[b].values, 75)
         out[b] = (q1, q3)
@@ -45,6 +45,6 @@ for d in datasets:
         })
 
 stats_df = pd.DataFrame(rows)
-stats_df.to_csv("_svn_param_quartiles.csv", index=False)
+stats_df.to_csv("svn_grid_search_betas_quartiles.csv", index=False)
 
-print("\nSaved statistics to _svn_param_quartiles.csv")
+print("\nSaved statistics to svn_grid_search_betas_quartiles.csv")

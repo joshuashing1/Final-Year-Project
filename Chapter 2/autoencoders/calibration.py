@@ -34,7 +34,7 @@ def svn_gen(n_samples, taus, ranges, noise_std=0.0005, seed=0):
 def save_ae(ae: AutoencoderNN, path: str, include_optimizer: bool = False):
     payload = {"param_in": np.array([ae.param_in], dtype=np.int32)}
     names = ["e1", "e2", "e3", "d1", "d2", "out"]
-    layers = [ae.e1, ae.e2, ae.e3, ae.d1, ae.d2, ae.out]
+    layers = [ae.encoder1, ae.encoder2, ae.encoder3, ae.decoder1, ae.decoder2, ae.out]
     for name, layer in zip(names, layers):
         payload[f"{name}_W"] = layer.W
         payload[f"{name}_b"] = layer.b
