@@ -16,9 +16,9 @@ class AutoencoderNN:
         
         self.encoder1 = Dense(self.param_in, 30, activation=self.activation, rng=rng)
         self.encoder2 = Dense(30, 30, activation=self.activation, rng=rng)
-        self.encoder3 = Dense(30, 12, activation=self.activation, rng=rng)  
+        self.encoder3 = Dense(30, 15, activation=self.activation, rng=rng)  
         
-        self.decoder1 = Dense(12, 30, activation=self.activation, rng=rng)
+        self.decoder1 = Dense(15, 30, activation=self.activation, rng=rng)
         self.decoder2 = Dense(30, 30, activation=self.activation, rng=rng)
         self.out = Dense(30, self.param_in, activation=None, rng=rng)  
     
