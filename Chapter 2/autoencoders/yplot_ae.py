@@ -116,8 +116,8 @@ def process_yield_csv(csv_path: str, title: str, epochs=200, batch_size=128, lr=
 
     # 10) Historical plot
     fitted_curves = [LinearInterpolant(maturities_years, row) for row in X_smooth]
-    fig_path = f"{title}_historical_curve_smoothed.png"
-    yield_curves_plot(maturities_years, fitted_curves, title=f"{title} (AE-smoothed)", save_path=fig_path)
+    fig_path = f"{title}_ae_curve.png"
+    yield_curves_plot(maturities_years, fitted_curves, title=f"{title}", save_path=fig_path)
 
     return avg_rmse
 
