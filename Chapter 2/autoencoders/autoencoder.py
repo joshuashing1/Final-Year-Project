@@ -16,9 +16,9 @@ class AutoencoderNN:
         
         self.encoder1 = Dense(self.param_in, 30, activation=self.activation, rng=rng)
         self.encoder2 = Dense(30, 30, activation=self.activation, rng=rng)
-        self.encoder3 = Dense(30, 13, activation=self.activation, rng=rng)  
+        self.encoder3 = Dense(30, 12, activation=self.activation, rng=rng)  
         
-        self.decoder1 = Dense(13, 30, activation=self.activation, rng=rng)
+        self.decoder1 = Dense(12, 30, activation=self.activation, rng=rng)
         self.decoder2 = Dense(30, 30, activation=self.activation, rng=rng)
         self.out = Dense(30, self.param_in, activation=None, rng=rng)  
     
@@ -60,6 +60,7 @@ class AutoencoderNN:
     def train(self, X, epochs: int, batch_size: int, lr: float, shuffle=True, verbose=True):
         X = X.astype(np.float32, copy=False)
         n = len(X); t = 0
+        epoch_losses = []
         for ep in range(1, epochs + 1):
             idx = np.arange(n)
             if shuffle:
@@ -97,8 +98,8 @@ class AutoencoderNN:
 
             if verbose:
                 print(f"Epoch {ep:03d} | Loss: {running / n:.6f}")
+                
 
-    # ----- convenience -----
     def get_latent(self, X):
         return self.encode(X.astype(np.float32, copy=False))
 

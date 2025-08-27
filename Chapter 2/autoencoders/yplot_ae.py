@@ -8,10 +8,10 @@ PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
 if PRJ_ROOT not in sys.path:
     sys.path.insert(0, PRJ_ROOT)
 
-from utils import detect_and_split_dates, build_dense_matrix, standardize_fit, standardize_apply, standardize_inverse
+from utils import detect_and_split_dates, build_dense_matrix, standardize_fit, standardize_apply, standardize_inverse, yield_curves_plot
 from autoencoder import AutoencoderNN
 from synthetic_svn_training import pretrain_on_synthetic
-from parametric_models.yplot_historical import LinearInterpolant, yield_curves_plot
+from parametric_models.yplot_historical import LinearInterpolant
 
 def plot_overlay(maturities_years, raw_row, smooth_row, title, save_path):
     plt.figure(figsize=(12, 6), dpi=120)
@@ -74,6 +74,22 @@ def process_yield_csv(csv_path: str, title: str, epochs=200, batch_size=128, lr=
     # 6) Reconstruct & invert standardization (REAL data)
     Zhat = ae.reconstruct(Xz_real).astype(np.float32)
     X_smooth = standardize_inverse(Zhat, mu_real, sd_real)
+    
+    rmses = []
+    for i, row in values_df.iterrows():
+        y = pd.to_numeric(row, errors="coerce").to_numpy(dtype=float)
+        mask = ~np.isnan(y)
+        if mask.sum() == 0:
+            rmses.append(np.nan)
+            continue
+        # compare AE reconstruction only at observed tenors of that row
+        y_obs = y[mask]
+        yhat_obs = X_smooth[i, mask]
+        rmse = float(np.sqrt(np.mean((yhat_obs - y_obs) ** 2)))
+        rmses.append(rmse)
+
+    avg_rmse = float(np.nanmean(rmses))
+    print(f"[{title}] AE fit average RMSE on observed quotes: {avg_rmse:.6f}")
 
     # 7) Save smoothed CSV
     out_df = pd.DataFrame(X_smooth, columns=tenor_labels)
@@ -94,15 +110,16 @@ def process_yield_csv(csv_path: str, title: str, epochs=200, batch_size=128, lr=
         print(f"[{title}] Saved latent factors to {lat_csv}")
 
     # 9) Overlay
-    example_idx = max(0, min(example_index, len(X) - 1))
-    overlay_path = f"{title}_smoothed_overlay.png"
-    plot_overlay(maturities_years, X[example_idx], X_smooth[example_idx], title, overlay_path)
+    # example_idx = max(0, min(example_index, len(X) - 1))
+    # overlay_path = f"{title}_smoothed_overlay.png"
+    # plot_overlay(maturities_years, X[example_idx], X_smooth[example_idx], title, overlay_path)
 
     # 10) Historical plot
     fitted_curves = [LinearInterpolant(maturities_years, row) for row in X_smooth]
     fig_path = f"{title}_historical_curve_smoothed.png"
     yield_curves_plot(maturities_years, fitted_curves, title=f"{title} (AE-smoothed)", save_path=fig_path)
 
+    return avg_rmse
 
 def main():
     # === Configure synthetic Svensson parameter ranges (reasonable defaults) ===
@@ -110,7 +127,7 @@ def main():
     sv_ranges = {
         "beta1":  (3.3661, 4.9353),
         "beta2":  (-3.3400, -1.6373),
-        "beta3":  (-4.5277, -0.2641),
+        "beta3":  (-4.5276, -0.2641),
         "beta4":  (-8.0692, -0.9213),
         "lambd1": (0.4154, 5.0450),
         "lambd2": (0.0850, 2.3469)
@@ -123,7 +140,7 @@ def main():
     pretrain_cfg = {
         "n_samples": 20000,
         "ranges": sv_ranges,
-        "epochs": 60,
+        "epochs": 300,
         "batch_size": 256,
         "lr": 1e-3,
         "noise_std": 0.00,       # noise added to the generated curves (in raw units)
@@ -135,7 +152,7 @@ def main():
         process_yield_csv(
             csv_path=item["csv_path"],
             title=item["title"],
-            epochs=300,            # fine-tune epochs on REAL data
+            epochs=100,            # fine-tune epochs on REAL data
             batch_size=64,
             lr=1e-3,
             activation="relu",

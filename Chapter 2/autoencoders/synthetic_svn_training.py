@@ -10,7 +10,7 @@ from autoencoder import AutoencoderNN
 from parametric_models.svensson import SvenssonCurve
 from utils import standardize_fit, standardize_apply
 
-def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ranges: dict, noise_std: float = 0.0, seed: int = 0
+def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ranges: dict, noise_std: float, seed: int
     ) -> np.ndarray:
     """
     ranges keys: 'beta1','beta2','beta3','beta4','lambd1','lambd2' -> (low, high) tuples
@@ -20,15 +20,15 @@ def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ra
     m = len(maturities_years)
     X = np.empty((n_samples, m), dtype=np.float32)
     for i in range(n_samples):
-        b1  = rng.uniform(*ranges["beta1"])
-        b2  = rng.uniform(*ranges["beta2"])
-        b3  = rng.uniform(*ranges["beta3"])
-        b4  = rng.uniform(*ranges["beta4"])
-        l1  = rng.uniform(*ranges["lambd1"])
-        l2  = rng.uniform(*ranges["lambd2"])
+        beta1  = rng.uniform(*ranges["beta1"])
+        beta2  = rng.uniform(*ranges["beta2"])
+        beta3  = rng.uniform(*ranges["beta3"])
+        beta4  = rng.uniform(*ranges["beta4"])
+        lambd1  = rng.uniform(*ranges["lambd1"])
+        lambd2  = rng.uniform(*ranges["lambd2"])
 
-        curve = SvenssonCurve(beta1=b1, beta2=b2, beta3=b3, beta4=b4, lambd1=l1, lambd2=l2)
-        y = curve(maturities_years)  # evaluate at desired maturities
+        curve = SvenssonCurve(beta1=beta1, beta2=beta2, beta3=beta3, beta4=beta4, lambd1=lambd1, lambd2=lambd2)
+        y = curve(maturities_years)  
         if noise_std > 0:
             y = y + rng.normal(0.0, noise_std, size=y.shape)
         X[i] = y.astype(np.float32)
@@ -58,13 +58,6 @@ def pretrain_on_synthetic(ae: AutoencoderNN, maturities_years: np.ndarray, syn_c
     else:
         Xz_train = Xz_syn
 
-    ae.train(
-        X=Xz_train,
-        epochs=int(syn_cfg["epochs"]),
-        batch_size=int(syn_cfg["batch_size"]),
-        lr=float(syn_cfg["lr"]),
-        shuffle=True,
-        verbose=verbose
-    )
+    ae.train(X=Xz_train, epochs=int(syn_cfg["epochs"]), batch_size=int(syn_cfg["batch_size"]), lr=float(syn_cfg["lr"]), shuffle=True, verbose=verbose)
     if verbose:
         print("[pretrain] Finished synthetic pretraining.")
