@@ -106,15 +106,15 @@ def process_yield_csv_vae(
 
 def main():
     sv_ranges = {
-        "beta1":  (3.7304, 4.4242),
-        "beta2":  (-3.6421, 1.4914),
-        "beta3":  (-0.8597, 2.9231),
-        "beta4":  (-2.6874, 2.7582),
-        "lambd1": (0.8896, 5.0500),
-        "lambd2": (1.1007, 5.0500)
+        "beta1":  (4.2596, 5.0103),
+        "beta2":  (-2.0138, -0.9452),
+        "beta3":  (-1.9614, 0.9350),
+        "beta4":  (-3.4036, 1.1247),
+        "lambd1": (0.5693, 3.5197),
+        "lambd2": (2.0220, 3.1856)
     }
 
-    datasets = [{"csv_path": r"Chapter 2\Data\GLC_Yield_Final.csv", "title": "GBP"}]
+    datasets = [{"csv_path": r"Chapter 2\data\ECB_Yield_Final.csv", "title": "EUR"}]
 
     K = 3
 

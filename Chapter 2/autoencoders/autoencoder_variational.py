@@ -24,7 +24,7 @@ class VariationalNN:
       - get_latent / reconstruct / reconstruct_mean / reconstruct_mc_mean
     """
 
-    def __init__(self, param_in: int, activation: str, latent_dim: int = 13, beta: float = 1.0, rng=None):
+    def __init__(self, param_in: int, activation: str, latent_dim: int, beta: float = 1.0, rng=None):
         self.param_in = int(param_in)
         self.activation = activation
         self.latent_dim = int(latent_dim)
@@ -34,7 +34,7 @@ class VariationalNN:
         # ---- encoder trunk (same layout style as AutoencoderNN) ----
         self.encoder1 = Dense(self.param_in, 30, activation=self.activation, rng=self.rng)
         self.encoder2 = Dense(30, 30, activation=self.activation, rng=self.rng)
-        self.encoder3 = Dense(30, 13, activation=self.activation, rng=self.rng)  # top hidden size = 13
+        self.encoder3 = Dense(30, 13, activation=self.activation, rng=self.rng)  
 
         # heads for μ and log σ
         self.mu_head     = Dense(13, self.latent_dim, activation=None, rng=self.rng)
