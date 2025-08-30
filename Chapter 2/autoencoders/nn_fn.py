@@ -24,11 +24,12 @@ def dsigmoid(x: float):
 
 
 class Dense:
-    def __init__(self, in_dim, out_dim, activation=None, rng=None):
+    def __init__(self, in_dim: int, out_dim: int, activation=None, rng=None):
         """
-        activation ∈ {None, 'relu', 'tanh', 'sigmoid'}.
+        activation fx.
         """
-        self.in_dim, self.out_dim = in_dim, out_dim
+        self.in_dim = in_dim
+        self.out_dim = out_dim
         self.activation = activation
 
         if rng is None:
