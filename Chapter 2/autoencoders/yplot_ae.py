@@ -125,16 +125,16 @@ def main():
     # === Configure synthetic Svensson parameter ranges (reasonable defaults) ===
     # Units: same as your data (e.g., percent). Tune ranges to your universe.
     sv_ranges = {
-        "beta1":  (4.2596, 5.0103),
-        "beta2":  (-2.0138, -0.9452),
-        "beta3":  (-1.9614, 0.9350),
-        "beta4":  (-3.4036, 1.1247),
-        "lambd1": (0.5693, 3.5197),
-        "lambd2": (2.0220, 3.1856)
+        "beta1":  (3.3662, 4.9353),
+        "beta2":  (-3.3400, -1.6373),
+        "beta3":  (-4.5276, -0.2641),
+        "beta4":  (-8.0692, -0.9213),
+        "lambd1": (0.4154, 5.0450),
+        "lambd2": (0.0850, 2.3469)
     }
 
     # === Datasets you want to smooth ===
-    datasets = [{"csv_path": r"Chapter 2\data\ECB_Yield_Final.csv", "title": "EUR"}]
+    datasets = [{"csv_path": r"Chapter 2\data\USTreasury_Yield_Final.csv", "title": "USD"}]
 
     # === Pretrain configuration (set to None to disable pretraining) ===
     pretrain_cfg = {
