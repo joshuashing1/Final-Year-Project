@@ -91,7 +91,7 @@ def yield_curves_plot(maturities_years, fitted_curves, title, save_path):
     ax.set_xlim(left=0, right=x_max)
     
     info = (
-        r"• Network: AE"
+        r"• Network: VAE"
         "\n"
         r"• Latent Dim: 13"
     )

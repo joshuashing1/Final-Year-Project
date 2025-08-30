@@ -95,7 +95,7 @@ def process_yield_csv(csv_path: str, title: str, epochs: int, batch_size: int, l
     out_df = pd.DataFrame(X_smooth, columns=tenor_labels)
     if dates is not None:
         out_df.insert(0, "Date", dates)
-    out_csv = f"{title}_yield_reconstructed.csv"
+    out_csv = f"{title}_ae_yield_reconstructed.csv"
     out_df.to_csv(out_csv, index=False)
     print(f"[{title}] Saved smoothed CSV to {out_csv}")
 
@@ -105,7 +105,7 @@ def process_yield_csv(csv_path: str, title: str, epochs: int, batch_size: int, l
         lat_df = pd.DataFrame(lat, columns=[f"z{i+1}" for i in range(lat.shape[1])])
         if dates is not None:
             lat_df.insert(0, "Date", dates)
-        lat_csv = f"{title}_latent_factors.csv"
+        lat_csv = f"{title}_ae_latent_factors.csv"
         lat_df.to_csv(lat_csv, index=False)
         print(f"[{title}] Saved latent factors to {lat_csv}")
 
