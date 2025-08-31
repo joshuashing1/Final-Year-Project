@@ -87,15 +87,15 @@ class VariationalNN:
             self.decoder1, self.decoder2, self.out
         ]
 
-    def step_adam(self, grads, lr, t, beta1=0.9, beta2=0.999, eps=1e-8):
+    def step_adam(self, grads, lr, t, eta1=0.9, eta2=0.999, eps=1e-8):
         for layer, (dW, db) in zip(self.parameters(), grads):
-            layer.mW = beta1 * layer.mW + (1 - beta1) * dW
-            layer.vW = beta2 * layer.vW + (1 - beta2) * (dW * dW)
-            layer.mb = beta1 * layer.mb + (1 - beta1) * db
-            layer.vb = beta2 * layer.vb + (1 - beta2) * (db * db)
+            layer.mW = eta1 * layer.mW + (1 - eta1) * dW
+            layer.vW = eta2 * layer.vW + (1 - eta2) * (dW * dW)
+            layer.mb = eta1 * layer.mb + (1 - eta1) * db
+            layer.vb = eta2 * layer.vb + (1 - eta2) * (db * db)
 
-            mW_hat = layer.mW / (1 - beta1**t); vW_hat = layer.vW / (1 - beta2**t)
-            mb_hat = layer.mb / (1 - beta1**t); vb_hat = layer.vb / (1 - beta2**t)
+            mW_hat = layer.mW / (1 - eta1**t); vW_hat = layer.vW / (1 - eta2**t)
+            mb_hat = layer.mb / (1 - eta1**t); vb_hat = layer.vb / (1 - eta2**t)
 
             layer.W -= lr * mW_hat / (np.sqrt(vW_hat) + eps)
             layer.b -= lr * mb_hat / (np.sqrt(vb_hat) + eps)
