@@ -139,7 +139,7 @@ def main():
             lr=1e-3,
             activation="relu",
             noise_std=0.00,
-            latent_dim=2,
+            latent_dim=13,
             save_latent=True,
             pretrain=pretrain_cfg,
             kld_weight=1.0,
