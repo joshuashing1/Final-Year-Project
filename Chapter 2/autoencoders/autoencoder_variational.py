@@ -14,7 +14,7 @@ class VariationalNN:
     Decoder:        latent_dim -> 30 -> 30 -> param_in
 
     Reparameterization: z = mu + exp(log_std) * eps
-    Loss (per batch):   total = recon_MSE + beta * kld_weight * KLD
+    Loss (per batch):   total = recon_MSE + KLD
                         KLD(q||p) = 0.5 * sum(mu^2 + exp(2*log_std) - 1 - 2*log_std)
 
     Public API mirrors AutoencoderNN:
@@ -24,17 +24,16 @@ class VariationalNN:
       - get_latent / reconstruct / reconstruct_mean / reconstruct_mc_mean
     """
 
-    def __init__(self, param_in: int, activation: str, latent_dim: int, beta: float = 1.0, rng=None):
+    def __init__(self, param_in: int, activation: str, latent_dim: int, rng=None):
         self.param_in = int(param_in)
         self.activation = activation
         self.latent_dim = int(latent_dim)
-        self.beta = float(beta)
         self.rng = np.random.default_rng(0) if rng is None else rng
 
-        # ---- encoder trunk (same layout style as AutoencoderNN) ----
+        # ---- encoder trunk ----
         self.encoder1 = Dense(self.param_in, 30, activation=self.activation, rng=self.rng)
         self.encoder2 = Dense(30, 30, activation=self.activation, rng=self.rng)
-        self.encoder3 = Dense(30, 13, activation=self.activation, rng=self.rng)  
+        self.encoder3 = Dense(30, 13, activation=self.activation, rng=self.rng)
 
         # heads for μ and log σ
         self.mu_head     = Dense(13, self.latent_dim, activation=None, rng=self.rng)
@@ -79,8 +78,6 @@ class VariationalNN:
         return float((diff * diff).mean()), (2.0 / len(y)) * diff
 
     def parameters(self) -> List[Dense]:
-        # Order mirrors AutoencoderNN pattern (encoder... then decoder...),
-        # but includes the two VAE heads between encoder and decoder.
         return [
             self.encoder1, self.encoder2, self.encoder3,
             self.mu_head, self.logstd_head,
@@ -106,9 +103,9 @@ class VariationalNN:
         kld_i = -0.5 * (1.0 + 2.0 * log_std - mu * mu - s2).sum(axis=1)
         return float(kld_i.mean())
 
-    # ---------- training (syntax aligned with AutoencoderNN.train) ----------
+    # ---------- training ----------
     def train(self, X, epochs: int, batch_size: int, lr: float,
-              shuffle=True, verbose=True, kld_weight: float = 1.0, num_latent_samples: int = 1):
+              shuffle=True, verbose=True, num_latent_samples: int = 1):
         X = X.astype(np.float32, copy=False)
         n = len(X); t = 0
         epoch_totals, epoch_recs, epoch_klds = [], [], []
@@ -155,19 +152,15 @@ class VariationalNN:
                     rec_k, dL_dxhat = self.loss_fn(xhat, xb)
                     rec_acc += rec_k
 
-                    # average recon gradient over K (already /B inside loss_fn)
                     dL_dxhat *= (1.0 / K)
 
-                    # backprop through decoder
                     g, dW_out, db_out = self.out.backward(dL_dxhat);   dW_out_acc += dW_out; db_out_acc += db_out
                     g, dW_d2,  db_d2  = self.decoder2.backward(g);     dW_d2_acc  += dW_d2;  db_d2_acc  += db_d2
                     g, dW_d1,  db_d1  = self.decoder1.backward(g);     dW_d1_acc  += dW_d1;  db_d1_acc  += db_d1
 
-                    # chain rule through z = mu + exp(log_std)*eps
                     g_mu_sum += g
                     g_ls_sum += g * (std * eps)
 
-                # averaged reconstruction MSE over K
                 rec = rec_acc / float(K)
 
                 # analytic KL on the batch
@@ -175,40 +168,36 @@ class VariationalNN:
                 kld_i = -0.5 * (1.0 + 2.0 * log_std - mu * mu - s2).sum(axis=1)
                 kld = float(kld_i.mean())
 
-                # add KL gradients (scaled) to μ and logσ heads
-                scale = self.beta * kld_weight
-                dK_dmu =  (mu / B).astype(np.float32)
+                # add KL gradients (standard ELBO, no scaling)
+                dK_dmu = (mu / B).astype(np.float32)
                 dK_dls = ((s2 - 1.0) / B).astype(np.float32)
 
-                g_mu_total = g_mu_sum + scale * dK_dmu
-                g_ls_total = g_ls_sum + scale * dK_dls
+                g_mu_total = g_mu_sum + dK_dmu
+                g_ls_total = g_ls_sum + dK_dls
 
-                # heads backprop
                 gh_mu, dW_mu, db_mu = self.mu_head.backward(g_mu_total)
                 gh_ls, dW_ls, db_ls = self.logstd_head.backward(g_ls_total)
                 gh = gh_mu + gh_ls
 
-                # encoder trunk backprop
                 g, dW_e3, db_e3 = self.encoder3.backward(gh)
                 g, dW_e2, db_e2 = self.encoder2.backward(g)
                 _, dW_e1, db_e1 = self.encoder1.backward(g)
 
-                # --- Build grads in backward order (like AutoencoderNN), then reverse ---
                 grads = []
-                grads.append((dW_out_acc, db_out_acc))  # out
-                grads.append((dW_d2_acc,  db_d2_acc))   # decoder2
-                grads.append((dW_d1_acc,  db_d1_acc))   # decoder1
-                grads.append((dW_ls,      db_ls))       # logstd_head
-                grads.append((dW_mu,      db_mu))       # mu_head
-                grads.append((dW_e3,      db_e3))       # encoder3
-                grads.append((dW_e2,      db_e2))       # encoder2
-                grads.append((dW_e1,      db_e1))       # encoder1
-                grads = grads[::-1]  # now matches self.parameters() order exactly
+                grads.append((dW_out_acc, db_out_acc))
+                grads.append((dW_d2_acc,  db_d2_acc))
+                grads.append((dW_d1_acc,  db_d1_acc))
+                grads.append((dW_ls,      db_ls))
+                grads.append((dW_mu,      db_mu))
+                grads.append((dW_e3,      db_e3))
+                grads.append((dW_e2,      db_e2))
+                grads.append((dW_e1,      db_e1))
+                grads = grads[::-1]
 
                 t += 1
                 self.step_adam(grads, lr, t)
 
-                total = rec + self.beta * kld_weight * kld
+                total = rec + kld
                 run_total += total * B; run_rec += rec * B; run_kld += kld * B
 
             if verbose:
@@ -222,16 +211,13 @@ class VariationalNN:
 
     # ---------- helpers ----------
     def get_latent(self, X: np.ndarray):
-        """Posterior mean μ (deterministic)."""
         mu, _ = self.encode(X.astype(np.float32, copy=False))
         return mu
 
     def reconstruct(self, X: np.ndarray):
-        """Single MC sample decode."""
         return self.forward(X.astype(np.float32, copy=False))
 
     def reconstruct_mc_mean(self, X: np.ndarray, num_latent_samples: int):
-        """Monte-Carlo mean of reconstructions."""
         K = max(1, int(num_latent_samples))
         X = X.astype(np.float32, copy=False)
         mu, log_std = self.encode(X)

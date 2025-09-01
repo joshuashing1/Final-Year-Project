@@ -1,4 +1,4 @@
-# yplot_vae.py  (fixed)
+# yplot_vae.py
 import os, sys
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ from parametric_models.yplot_historical import LinearInterpolant
 def process_yield_csv_vae(
     csv_path: str, title: str, epochs: int, batch_size: int, lr: float,
     activation: str, noise_std: float, latent_dim: int,
-    kld_weight: float, beta: float, num_latent_samples: int,
+    num_latent_samples: int,
     save_latent: bool = True, pretrain: dict | None = None
 ):
     if not os.path.exists(csv_path):
@@ -37,7 +37,7 @@ def process_yield_csv_vae(
     print(f"[{title}] Loaded {n_obs} rows with {n_tenors} tenors.")
 
     # 3) VAE
-    vae = VariationalNN(param_in=n_tenors, activation=activation, latent_dim=latent_dim, rng=rng, beta=beta)
+    vae = VariationalNN(param_in=n_tenors, activation=activation, latent_dim=latent_dim, rng=rng)
 
     # 4) Pretrain (optional)
     if pretrain is not None:
@@ -48,7 +48,7 @@ def process_yield_csv_vae(
     Xz_real = standardize_apply(X, mu_real, sd_real)
     X_train = Xz_real + rng.normal(0.0, noise_std, size=Xz_real.shape).astype(np.float32) if noise_std > 0 else Xz_real
 
-    # Train (K-sample)
+    # Train
     epoch_totals, epoch_recs, epoch_klds = vae.train(
         X=X_train,
         epochs=epochs,
@@ -56,7 +56,6 @@ def process_yield_csv_vae(
         lr=lr,
         shuffle=True,
         verbose=True,
-        kld_weight=kld_weight,
         num_latent_samples=num_latent_samples,
     )
 
@@ -125,9 +124,9 @@ def main():
         "batch_size": 256,
         "lr": 1e-3,
         "noise_std": 0.00,
-        "noise_std_train": 0.005,
+        "noise_std_train": 0.01,
         "seed": 0,
-        "num_latent_samples": K,   
+        "num_latent_samples": K,
     }
 
     for item in datasets:
@@ -142,8 +141,6 @@ def main():
             latent_dim=13,
             save_latent=True,
             pretrain=pretrain_cfg,
-            kld_weight=1.0,
-            beta=1.0,
             num_latent_samples=K
         )
 
