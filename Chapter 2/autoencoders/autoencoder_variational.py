@@ -14,13 +14,13 @@ class VariationalNN:
     Decoder:        latent_dim -> 30 -> 30 -> param_in
 
     Reparameterization: z = mu + exp(log_std) * eps
-    Loss (per batch):   total = recon_MSE + KLD
+    Loss (per batch):   total = recon_MSE + beta_kld * KLD
                         KLD(q||p) = 0.5 * sum(mu^2 + exp(2*log_std) - 1 - 2*log_std)
 
     Public API mirrors AutoencoderNN:
       - encode / decode / forward
       - loss_fn (returns MSE and dL/dpred)
-      - parameters / step_adam / train(...)
+      - parameters / step_adam / train(..., beta_kld=1.0)
       - get_latent / reconstruct / reconstruct_mean / reconstruct_mc_mean
     """
 
@@ -105,7 +105,12 @@ class VariationalNN:
 
     # ---------- training ----------
     def train(self, X, epochs: int, batch_size: int, lr: float,
-              shuffle=True, verbose=True, num_latent_samples: int = 1):
+              shuffle=True, verbose=True, num_latent_samples: int = 1,
+              beta_kld: float = 1.0):
+        """
+        Train the VAE with ELBO = recon_MSE + beta_kld * KL.
+        - beta_kld scales BOTH the KL value in the total loss and its gradients.
+        """
         X = X.astype(np.float32, copy=False)
         n = len(X); t = 0
         epoch_totals, epoch_recs, epoch_klds = [], [], []
@@ -168,9 +173,9 @@ class VariationalNN:
                 kld_i = -0.5 * (1.0 + 2.0 * log_std - mu * mu - s2).sum(axis=1)
                 kld = float(kld_i.mean())
 
-                # add KL gradients (standard ELBO, no scaling)
-                dK_dmu = (mu / B).astype(np.float32)
-                dK_dls = ((s2 - 1.0) / B).astype(np.float32)
+                # add KL gradients (scaled by beta_kld)
+                dK_dmu = (beta_kld * mu / B).astype(np.float32)
+                dK_dls = (beta_kld * (s2 - 1.0) / B).astype(np.float32)
 
                 g_mu_total = g_mu_sum + dK_dmu
                 g_ls_total = g_ls_sum + dK_dls
@@ -197,11 +202,16 @@ class VariationalNN:
                 t += 1
                 self.step_adam(grads, lr, t)
 
-                total = rec + kld
-                run_total += total * B; run_rec += rec * B; run_kld += kld * B
+                total = rec + beta_kld * kld
+                run_total += total * B; run_rec += rec * B; run_kld += kld * B  # store raw KL for logging
 
             if verbose:
-                print(f"Epoch {ep:03d} | total loss={run_total / n:.6f} | reconstruction loss={run_rec / n:.6f} | kld={run_kld / n:.6f}")
+                print(
+                    f"Epoch {ep:03d} | total loss={run_total / n:.6f} "
+                    f"| reconstruction loss={run_rec / n:.6f} "
+                    f"| kld={run_kld / n:.6f} "
+                    f"| beta_kld={beta_kld:g}"
+                )
 
             epoch_totals.append(run_total / n)
             epoch_recs.append(run_rec / n)

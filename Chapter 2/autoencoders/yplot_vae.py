@@ -21,7 +21,8 @@ def process_yield_csv_vae(
     csv_path: str, title: str, epochs: int, batch_size: int, lr: float,
     activation: str, noise_std: float, latent_dim: int,
     num_latent_samples: int,
-    save_latent: bool = True, pretrain: dict | None = None
+    save_latent: bool = True, pretrain: dict | None = None,
+    kld_beta: float = 1.0
 ):
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV not found: {csv_path}")
@@ -57,6 +58,7 @@ def process_yield_csv_vae(
         shuffle=True,
         verbose=True,
         num_latent_samples=num_latent_samples,
+        beta_kld=kld_beta,
     )
 
     # 6) Always MC-mean decode
@@ -127,6 +129,7 @@ def main():
         "noise_std_train": 0.01,
         "seed": 0,
         "num_latent_samples": K,
+        # no beta needed; pretrain helper can call vae.train with default β=1
     }
 
     for item in datasets:
@@ -141,7 +144,8 @@ def main():
             latent_dim=13,
             save_latent=True,
             pretrain=pretrain_cfg,
-            num_latent_samples=K
+            num_latent_samples=K,
+            kld_beta=1.0
         )
 
 if __name__ == "__main__":
