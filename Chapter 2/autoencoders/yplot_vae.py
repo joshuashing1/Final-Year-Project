@@ -14,7 +14,7 @@ from utils import (
     yield_curves_plot
 )
 from autoencoder_variational import VariationalNN
-from synthetic_svn_training import pretrain_on_synthetic
+from synthetic_svn_training_vae import pretrain_on_synthetic
 from parametric_models.yplot_historical import LinearInterpolant
 
 def process_yield_csv_vae(
@@ -128,8 +128,7 @@ def main():
         "noise_std": 0.00,
         "noise_std_train": 0.01,
         "seed": 0,
-        "num_latent_samples": K,
-        # no beta needed; pretrain helper can call vae.train with default β=1
+        "num_latent_samples": K
     }
 
     for item in datasets:
@@ -141,11 +140,11 @@ def main():
             lr=1e-3,
             activation="relu",
             noise_std=0.00,
-            latent_dim=13,
+            latent_dim=2,
             save_latent=True,
             pretrain=pretrain_cfg,
             num_latent_samples=K,
-            kld_beta=1.0
+            kld_beta=0.01 # kld loss multiplier
         )
 
 if __name__ == "__main__":

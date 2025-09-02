@@ -71,7 +71,6 @@ class VariationalNN:
         z = (mu + std * eps).astype(np.float32)
         return self.decode(z)
 
-    # ---------- loss / params / optimizer ----------
     def loss_fn(self, pred: np.ndarray, y: np.ndarray):
         """MSE and its gradient wrt pred (same signature/behavior as AutoencoderNN)."""
         diff = pred - y
@@ -103,10 +102,9 @@ class VariationalNN:
         kld_i = -0.5 * (1.0 + 2.0 * log_std - mu * mu - s2).sum(axis=1)
         return float(kld_i.mean())
 
-    # ---------- training ----------
     def train(self, X, epochs: int, batch_size: int, lr: float,
               shuffle=True, verbose=True, num_latent_samples: int = 1,
-              beta_kld: float = 1.0):
+              beta_kld: float = 0.01):
         """
         Train the VAE with ELBO = recon_MSE + beta_kld * KL.
         - beta_kld scales BOTH the KL value in the total loss and its gradients.
@@ -131,14 +129,12 @@ class VariationalNN:
                 if B == 0:
                     continue
 
-                # ----- encode once -----
                 h = self._encode_hidden(xb)
                 mu = self.mu_head.forward(h)
                 log_std = self.logstd_head.forward(h)
                 std = np.exp(log_std).astype(np.float32)
 
-                # accumulators for K Monte-Carlo samples
-                K = max(1, int(num_latent_samples))
+                K = max(1, int(num_latent_samples)) # monte carlo samples
                 rec_acc = 0.0
 
                 dW_out_acc = np.zeros_like(self.out.W);      db_out_acc = np.zeros_like(self.out.b)
@@ -148,7 +144,6 @@ class VariationalNN:
                 g_mu_sum = np.zeros_like(mu)
                 g_ls_sum = np.zeros_like(log_std)
 
-                # ----- Monte-Carlo over z ~ q(z|x) -----
                 for _ in range(K):
                     eps = self.rng.normal(size=std.shape).astype(np.float32)
                     z = (mu + std * eps).astype(np.float32)
@@ -168,12 +163,10 @@ class VariationalNN:
 
                 rec = rec_acc / float(K)
 
-                # analytic KL on the batch
                 s2 = np.exp(2.0 * log_std)
                 kld_i = -0.5 * (1.0 + 2.0 * log_std - mu * mu - s2).sum(axis=1)
                 kld = float(kld_i.mean())
 
-                # add KL gradients (scaled by beta_kld)
                 dK_dmu = (beta_kld * mu / B).astype(np.float32)
                 dK_dls = (beta_kld * (s2 - 1.0) / B).astype(np.float32)
 
@@ -210,7 +203,6 @@ class VariationalNN:
                     f"Epoch {ep:03d} | total loss={run_total / n:.6f} "
                     f"| reconstruction loss={run_rec / n:.6f} "
                     f"| kld={run_kld / n:.6f} "
-                    f"| beta_kld={beta_kld:g}"
                 )
 
             epoch_totals.append(run_total / n)
@@ -219,7 +211,6 @@ class VariationalNN:
 
         return epoch_totals, epoch_recs, epoch_klds
 
-    # ---------- helpers ----------
     def get_latent(self, X: np.ndarray):
         mu, _ = self.encode(X.astype(np.float32, copy=False))
         return mu
