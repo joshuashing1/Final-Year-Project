@@ -93,7 +93,7 @@ def process_yield_csv_vae(
         lat_df = pd.DataFrame(lat_mu, columns=[f"z{i+1}" for i in range(lat_mu.shape[1])])
         if dates is not None:
             lat_df.insert(0, "Date", dates)
-        lat_csv = f"{title}_vae_latent_mean.csv"
+        lat_csv = f"{title}_vae_latent_space.csv"
         lat_df.to_csv(lat_csv, index=False)
         print(f"[{title}] Saved latent mean factors to {lat_csv}")
 
@@ -107,17 +107,17 @@ def process_yield_csv_vae(
 
 def main():
     sv_ranges = {
-        "beta1":  (3.3662, 4.9353),
-        "beta2":  (-3.3400, -1.6373),
-        "beta3":  (-4.5276, -0.2641),
-        "beta4":  (-8.0692, -0.9213),
-        "lambd1": (0.4154, 5.0450),
-        "lambd2": (0.0850, 2.3469)
+        "beta1":  (2.9778, 3.3357),
+        "beta2":  (-3.1356, -2.6116),
+        "beta3":  (-671.6345, 919.9867),
+        "beta4":  (-925.3099, 665.6271),
+        "lambd1": (1.3813, 2.2522),
+        "lambd2": (1.4414, 2.0658)
     }
 
-    datasets = [{"csv_path": r"Chapter 2\data\USTreasury_Yield_Final.csv", "title": "USD"}]
+    datasets = [{"csv_path": r"Chapter 2\data\SGS_Yield_Final.csv", "title": "SGD"}]
 
-    K = 3
+    K = 5 # monte-carlo samples
 
     pretrain_cfg = {
         "n_samples": 20000,
