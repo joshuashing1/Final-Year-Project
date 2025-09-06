@@ -96,8 +96,7 @@ def main():
     # Your rectangular dataset (header=tenors, rows=curves)
     datasets = [{"csv_path": r"Chapter 2\data\SGS_Yield_Final.csv", "title": "SGD"}]
 
-    # Monte Carlo samples for both training and evaluation
-    K = 5
+    K = 5 # monte carlo samples for both pre-training and fitting
 
     pretrain_cfg = {
         "n_samples": 20000,

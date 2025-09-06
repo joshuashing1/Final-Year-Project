@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("Chapter 3\GLC_fwd_curve_raw.csv")        # expects a 'time' column, rest are tenors
+df = pd.read_csv("data\GLC_fwd_curve_raw.csv")
 df = df.set_index("time")
 
 def parse_tenor(s: str) -> float:
@@ -15,7 +15,7 @@ def parse_tenor(s: str) -> float:
     # fallback: try raw numeric
     return float(s)
 
-# Map tenor labels -> year-floats and sort columns by tenor ascending
+# may change depending if I am using multiple currencies or not.
 tenor_years = pd.Series({c: parse_tenor(c) for c in df.columns})
 tenor_years = tenor_years.sort_values()
 df = df.loc[:, tenor_years.index]
