@@ -13,7 +13,7 @@ from parametric_models.yplot_historical import parse_maturities, LinearInterpola
 def detect_and_split_dates(df: pd.DataFrame):
     cols = df.columns.tolist()
 
-    def is_tenor(c):
+    def parse_maturities(c):
         s = str(c).strip().upper()
         if s.endswith("M") or s.endswith("Y"):
             return True
@@ -23,7 +23,7 @@ def detect_and_split_dates(df: pd.DataFrame):
         except Exception:
             return False
 
-    if len(cols) > 0 and not is_tenor(cols[0]):
+    if len(cols) > 0 and not parse_maturities(cols[0]):
         return df.iloc[:, 0].astype(str).tolist(), df.iloc[:, 1:].copy()
     return None, df.copy()
 
