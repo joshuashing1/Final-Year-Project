@@ -1,3 +1,9 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+
 diff_rates = diff(hist_rates, axis=0)
 assert(hist_rates.shape[1]==diff_rates.shape[1])
 plot(diff_rates), xlabel(r'Time $t$'), title(r'$df(t,\tau)$ by $t$');

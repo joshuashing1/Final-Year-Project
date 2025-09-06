@@ -1,28 +1,45 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
-def parse_tenor(s: str) -> float:
-    s = str(s).strip().upper()
-    if s.endswith("M"):
-        return float(s[:-1]) / 12.0
-    if s.endswith("Y"):
-        return float(s[:-1])
-    return float(s)
+def detect_and_split_dates(df: pd.DataFrame):
+    cols = df.columns.tolist()
+
+    def parse_maturities(c):
+        s = str(c).strip().upper()
+        if s.endswith("M") or s.endswith("Y"):
+            return True
+        try:
+            float(s)
+            return True
+        except Exception:
+            return False
+
+    if len(cols) > 0 and not parse_maturities(cols[0]):
+        return df.iloc[:, 0].astype(str).tolist(), df.iloc[:, 1:].copy()
+    return None, df.copy()
 
 
-def standardize_fit(X: np.ndarray):
-    mu = X.mean(axis=0, keepdims=True)
-    sd = X.std(axis=0, keepdims=True)
-    sd[sd < 1e-8] = 1.0
-    return mu, sd
+def build_dense_matrix(values_df: pd.DataFrame):
+    tenor_labels = [str(c) for c in values_df.columns]
+    maturities_years = parse_maturities(tenor_labels)
+    X_list = []
+    for _, row in values_df.iterrows():
+        y = pd.to_numeric(row, errors="coerce").to_numpy(dtype=float)
+        mask = ~np.isnan(y)
 
+        if mask.sum() >= 2:
+            interp = LinearInterpolant(maturities_years[mask], y[mask])
+            y_filled = interp(maturities_years)
+        elif mask.sum() == 1:
+            y_filled = np.full_like(maturities_years, y[mask][0], dtype=float)
+        else:
+            y_filled = np.zeros_like(maturities_years, dtype=float)
 
-def standardize_apply(X: np.ndarray, mu: np.ndarray, sd: np.ndarray):
-    return (X - mu) / sd
+        X_list.append(y_filled)
+    X = np.vstack(X_list).astype(np.float32)
+    return X, maturities_years, tenor_labels
 
-
-def standardize_inverse(Z: np.ndarray, mu: np.ndarray, sd: np.ndarray):
-    return Z * sd + mu
 
 def yield_curves_plot(maturities_years, fitted_curves, title, save_path):
     """Yield curve plot in accordance to tenor structure.

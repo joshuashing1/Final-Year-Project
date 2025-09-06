@@ -8,23 +8,10 @@ PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
 if PRJ_ROOT not in sys.path:
     sys.path.insert(0, PRJ_ROOT)
 
-from utils import detect_and_split_dates, build_dense_matrix, standardize_fit, standardize_apply, standardize_inverse, yield_curves_plot
+from utils import parse_tenor, standardize_fit, standardize_apply, standardize_inverse, yield_curves_plot
 from autoencoder import AutoencoderNN
 from synthetic_svn_training import pretrain_on_synthetic
 from parametric_models.yplot_historical import LinearInterpolant
-
-def plot_overlay(maturities_years, raw_row, smooth_row, title, save_path):
-    plt.figure(figsize=(12, 6), dpi=120)
-    plt.plot(maturities_years, raw_row, marker="o", linewidth=1.0, label="Original (interp)")
-    plt.plot(maturities_years, smooth_row, marker="o", linewidth=1.5, label="Smoothed (AE)")
-    plt.xlabel("Maturity (Years)")
-    plt.ylabel("Interest Rate (%)")
-    plt.title(f"{title}: Original vs Smoothed (example row)")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=200)
-    plt.close()
-    print(f"Saved overlay to {save_path}")
 
 
 def process_yield_csv(csv_path: str, title: str, epochs: int, batch_size: int, lr: float, activation: str, noise_std: float, seed=0, example_index=0, save_latent=True, pretrain: dict | None = None):
@@ -39,26 +26,26 @@ def process_yield_csv(csv_path: str, title: str, epochs: int, batch_size: int, l
       "seed": 0
     }
     """
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"CSV not found: {csv_path}")
-
     rng = np.random.default_rng(seed)
 
     # 1) Load CSV
-    df_raw = pd.read_csv(csv_path, header=0)
-    dates, values_df = detect_and_split_dates(df_raw)
+    df = pd.read_csv(csv_path, header=0)
+    tenor_labels = [str(c) for c in df.columns]                  # preserve given order (already increasing)
+    maturities_years = np.array([parse_tenor(c) for c in tenor_labels], dtype=float)
 
     # 2) Dense matrix from real data
-    X, maturities_years, tenor_labels = build_dense_matrix(values_df)
+    X = df.to_numpy(dtype=np.float32)                             # shape [n_obs, n_tenors]
     n_obs, n_tenors = X.shape
-    print(f"[{title}] Loaded {n_obs} rows with {n_tenors} tenors.")
+    print(f"[{title}] Loaded {n_obs} rows with {n_tenors} tenors from '{csv_path}'.")
+    
+    # a simple integer time index (0..n_obs-1) since there is no 'time' column
+    T = np.arange(n_obs, dtype=np.int32)
 
     # 3) Create AE
     ae = AutoencoderNN(param_in=n_tenors, activation=activation, rng=rng)
 
     # 4) (Optional) pre-train on synthetic Svensson
     if pretrain is not None:
-        # ensure maturities known before pretrain
         pretrain_on_synthetic(ae, maturities_years, pretrain, verbose=True)
 
     # 5) Fine-tune on REAL data (standardize on real stats)
@@ -75,26 +62,11 @@ def process_yield_csv(csv_path: str, title: str, epochs: int, batch_size: int, l
     Zhat = ae.reconstruct(Xz_real).astype(np.float32)
     X_smooth = standardize_inverse(Zhat, mu_real, sd_real)
     
-    rmses = []
-    for i, row in values_df.iterrows():
-        y = pd.to_numeric(row, errors="coerce").to_numpy(dtype=float)
-        mask = ~np.isnan(y)
-        if mask.sum() == 0:
-            rmses.append(np.nan)
-            continue
-        # compare AE reconstruction only at observed tenors of that row
-        y_obs = y[mask]
-        yhat_obs = X_smooth[i, mask]
-        rmse = float(np.sqrt(np.mean((yhat_obs - y_obs) ** 2)))
-        rmses.append(rmse)
-
-    avg_rmse = float(np.nanmean(rmses))
+    avg_rmse = float(np.sqrt(np.mean((X_smooth - X) ** 2)))
     print(f"[{title}] AE fit average RMSE on observed quotes: {avg_rmse:.6f}")
 
     # 7) Save smoothed CSV
     out_df = pd.DataFrame(X_smooth, columns=tenor_labels)
-    if dates is not None:
-        out_df.insert(0, "Date", dates)
     out_csv = f"{title}_ae_yield_reconstructed.csv"
     out_df.to_csv(out_csv, index=False)
     print(f"[{title}] Saved smoothed CSV to {out_csv}")
@@ -103,16 +75,10 @@ def process_yield_csv(csv_path: str, title: str, epochs: int, batch_size: int, l
     if save_latent:
         lat = ae.get_latent(Xz_real).astype(np.float32)
         lat_df = pd.DataFrame(lat, columns=[f"z{i+1}" for i in range(lat.shape[1])])
-        if dates is not None:
-            lat_df.insert(0, "Date", dates)
+        lat_df.insert(0, "t", T)
         lat_csv = f"{title}_ae_latent_factors.csv"
         lat_df.to_csv(lat_csv, index=False)
         print(f"[{title}] Saved latent factors to {lat_csv}")
-
-    # 9) Overlay
-    # example_idx = max(0, min(example_index, len(X) - 1))
-    # overlay_path = f"{title}_smoothed_overlay.png"
-    # plot_overlay(maturities_years, X[example_idx], X_smooth[example_idx], title, overlay_path)
 
     # 10) Historical plot
     fitted_curves = [LinearInterpolant(maturities_years, row) for row in X_smooth]
