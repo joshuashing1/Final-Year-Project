@@ -1,5 +1,3 @@
-# drift_calculation_(run_script).py
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,10 +6,7 @@ from fwd_plot_historical import parse_tenor
 from pca_fn import PCAFactors
 from volatility_fn import VolatilityFitter, PolynomialInterpolator
 
-# -------------------------------
-# Load & align data
-# -------------------------------
-df = pd.read_csv(r"data\GLC_fwd_curve_raw.csv")
+df = pd.read_csv(r"Chapter 3\data\GLC_fwd_curve_raw.csv")
 df = df.set_index("time")
 
 tenor_years = pd.Series({c: parse_tenor(c) for c in df.columns})
@@ -22,9 +17,6 @@ T = df.index.to_numpy()          # time axis (rows)
 Tau = tenor_years.to_numpy()     # tenor in years (columns)
 Z = df.to_numpy(dtype=float)     # rates matrix [n_time, n_tenor]
 
-# -------------------------------
-# PCA: diff -> cov -> eig -> top-k
-# -------------------------------
 factors = 3
 pca = PCAFactors(k=factors, annualize=252.0)
 
