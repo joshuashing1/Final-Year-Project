@@ -113,3 +113,47 @@ def m(tau, fitted_vols):
 
 mc_drift = array([m(tau, fitted_vols) for tau in mc_tenors])
 plot(mc_drift, marker='.'), xlabel(r'Time $t$'), title('Risk-neutral drift');
+
+def simulation(f, tenors, drift, vols, timeline):
+    assert type(tenors)==ndarray
+    assert type(f)==ndarray
+    assert type(drift)==ndarray
+    assert type(timeline)==ndarray
+    assert len(f)==len(tenors)
+    vols = array(vols.transpose())  # 3 rows, T columns
+    len_tenors = len(tenors)
+    len_vols = len(vols)
+    yield timeline[0], copylib.copy(f)
+    for it in range(1, len(timeline)):
+        t = timeline[it]
+        dt = t - timeline[it-1]
+        sqrt_dt = sqrt(dt)
+        fprev = f
+        f = copylib.copy(f)
+        random_numbers = [normal() for i in range(len_vols)]
+        for iT in range(len_tenors):
+            val = fprev[iT] + drift[iT] * dt
+            #
+            sum = 0
+            for iVol, vol in enumerate(vols):
+                sum += vol[iT] * random_numbers[iVol]
+            val += sum * sqrt_dt
+            #
+            iT1 = iT+1 if iT<len_tenors-1 else iT-1   # if we can't take right difference, take left difference
+            dfdT = (fprev[iT1] - fprev[iT]) / (iT1 - iT)
+            val += dfdT * dt
+            #
+            f[iT] = val
+        yield t,f
+        
+proj_rates = []
+proj_timeline = linspace(0,5,500)
+progressbar = ProgressBar("One simulation path", len(proj_timeline))
+for i, (t, f) in enumerate(simulation(curve_spot, mc_tenors, mc_drift, mc_vols, proj_timeline)):
+    progressbar.update(i)
+    proj_rates.append(f)
+proj_rates = matrix(proj_rates)
+plot(proj_timeline.transpose(), proj_rates), xlabel(r'Time $t$'), ylabel(r'Rate $f(t,\tau)$');
+title(r'Simulated $f(t,\tau)$ by $t$'), show();
+plot(mc_tenors, proj_rates.transpose()), xlabel(r'Tenor $\tau$'), ylabel(r'Rate $f(t,\tau)$');
+title(r'Simulated $f(t,\tau)$ by $\tau$'), show();
