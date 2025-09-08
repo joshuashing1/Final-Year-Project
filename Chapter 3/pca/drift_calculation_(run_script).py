@@ -9,7 +9,7 @@ from pca_fn import PCAFactors
 from volatility_fn import VolatilityFitter, PolynomialInterpolator
 
 df = pd.read_csv(r"Chapter 3\data\GLC_fwd_curve_raw.csv")
-# df = df / 100.0
+df = df / 100.0
 df = df.set_index("time")
 
 def parse_tenor(s: str) -> float:
@@ -29,7 +29,7 @@ T = df.index.to_numpy()          # time axis (rows)
 Tau = tenor_years.to_numpy()     # tenor in years (columns)
 Z = df.to_numpy(dtype=float)     # rates matrix [n_time, n_tenor]
 
-labels   = ['1M','3M','6M','1Y','3Y','5Y','10Y','20Y','25Y']
+labels   = ['1M','6M','1.0Y','2.0Y','3.0Y','5.0Y','10.0Y','20.0Y','25.0Y']
 pick_tau = np.array([parse_tenor(x) for x in labels])
 
 factors = 3
@@ -108,73 +108,52 @@ def integrate(f, x0, x1, dx=0.01):
 def m_tau(tau, models):
     return sum(integrate(m, 0.0, tau) * float(m(tau)) for m in models)
 
-mc_drift = np.array([m_tau(t, vf.models) for t in pick_tau])  # shape (9,)
+mc_drift = np.array([m_tau(tau, vf.models) for tau in mc_tenors])  # shape (9,)
 mc_vols  = vf.predict(pick_tau)                                # shape (9, k)
 
-# ---------------- Timeline: use CSV index directly ----------------
-timeline = (T - T[0]).astype(float)   # start at 0; units = CSV index units
-TRADING_DAYS = 252.0
-
-# ---------------- Stable τ-gradient ----------------
-def tau_gradient(y: np.ndarray, tau: np.ndarray) -> np.ndarray:
-    g = np.empty_like(y)
-    if len(tau) == 1:
-        g[:] = 0.0
-    else:
-        g[1:-1] = (y[2:] - y[:-2]) / (tau[2:] - tau[:-2])
-        g[0]    = (y[1]  - y[0])   / (tau[1]  - tau[0])
-        g[-1]   = (y[-1] - y[-2])  / (tau[-1] - tau[-2])
-    return g
-
-def simulate_forward_curve(f0: np.ndarray,
-                           tenors: np.ndarray,
-                           drift:  np.ndarray,
-                           vols_grid: np.ndarray,   # [nTenor, k]
-                           timeline: np.ndarray) -> np.ndarray:
-    """
-    Euler (time in YEARS):
-      f_{t+dt}(τ) = f_t(τ) + (∂f/∂τ + m(τ)) * dt_years + Σ_i σ_i(τ) * dW_i,
-    where σ are annualized (per √year) and dW_i ~ N(0, dt_years).
-    """
-    k = vols_grid.shape[1]
-    vols_Tk = np.asarray(vols_grid).T                # k × nTenor
-    f = f0.copy()
-    out = [f.copy()]
-    for it in range(1, len(timeline)):
-        dt_rows   = float(timeline[it] - timeline[it-1])   # row steps (e.g., days)
-        if dt_rows <= 0:
-            out.append(f.copy()); continue
-        dt_years  = dt_rows / TRADING_DAYS                 # <<< key fix
-        dW        = np.random.normal(size=k) * np.sqrt(dt_years)
-        conv      = tau_gradient(f, tenors)                # ∂f/∂τ
-        diff      = vols_Tk.T @ dW                         # (nTenor,)
-        f         = f + (conv + drift) * dt_years + diff
-
-        # numerical hygiene in case of rare overshoots
-        if not np.all(np.isfinite(f)):
-            f = np.nan_to_num(f, nan=0.0, posinf=0.0, neginf=0.0)
-        out.append(f.copy())
-    return np.vstack(out)                                  # [n_time, n_tenor]
-
-
-np.random.seed(0)
-f0 = np.interp(pick_tau, Tau, Z[0])                 # start from first CSV row on 9 maturities
-sim_mat = simulate_forward_curve(f0, pick_tau, mc_drift, mc_vols, timeline)   # [n_time, 9]
-
-# ---------------- Historical series at the same 9 maturities ----------------
-hist_cols = [int(np.argmin(np.abs(Tau - tau))) for tau in pick_tau]
-hist_series = Z[:, hist_cols]                        # [n_time, 9]
-
-# ---------------- Plot: Historical vs Expected (9-panel) ----------------
-fig, axs = plt.subplots(3, 3, figsize=(14, 10)); axs = axs.ravel()
-for i, (ax, lbl) in enumerate(zip(axs, labels)):
-    ax.plot(timeline, hist_series[:, i], label='Historical', lw=1.4, color='green')
-    ax.plot(timeline, sim_mat[:, i],     label='Expected',   lw=1.2, color='blue')
-    ax.set_title(f"Maturity: {lbl}")
-    ax.grid(True, alpha=0.3)
-    if i % 3 == 0: ax.set_ylabel(r"Forward rate $f(t,\tau)$")
-    if i >= 6:     ax.set_xlabel("Time")
-handles, labs = axs[-1].get_legend_handles_labels()
-fig.legend(handles, labs, loc="lower center", ncol=2)
-plt.tight_layout(rect=[0, 0.04, 1, 1])
+plt.figure(figsize=(10, 4))
+plt.plot(mc_tenors, mc_drift, marker='.')
+plt.xlabel(r'Tenor $\tau$ (years)')
+plt.title('Risk-neutral drift')
+plt.tight_layout()
 plt.show()
+
+curve_spot = np.array(Z[0,:].flatten())[0]
+
+# --- Align to requested tenors
+label_to_tau  = np.array([parse_tenor(x) for x in labels])
+label_col_idx = [int(np.where(np.isclose(Tau, t))[0][0]) for t in label_to_tau]
+curve_spot_vec = Z[0, label_col_idx].astype(float)                 # (9,)
+drift_at_labels = np.array([m_tau(t, vf.models) for t in label_to_tau])  # (9,)
+vols_at_labels  = vf.predict(label_to_tau)                         # (9, k)
+n_days = len(T)
+timeline_years = np.arange(n_days) / 252.0
+hist_path = df[labels].to_numpy(dtype=float)                       # (n_days, 9)
+
+# --- Simulation (one path)
+def simulate_forward_path(f0, tau, drift, vols, tgrid, seed=123):
+    f = f0.copy()
+    N, K = len(tau), vols.shape[1]
+    path = np.empty((len(tgrid), N), float); path[0] = f
+    rng = np.random.default_rng(seed); vols_T = vols.T
+    for it in range(1, len(tgrid)):
+        dt = tgrid[it] - tgrid[it-1]; z = rng.normal(size=K); fprev = f.copy()
+        for i in range(N):
+            i1 = i+1 if i < N-1 else i-1
+            f[i] = (fprev[i] + drift[i]*dt
+                    + np.dot(vols_T[:, i], z)*np.sqrt(dt)
+                    + (fprev[i1]-fprev[i])/(tau[i1]-tau[i]) * dt)
+        path[it] = f
+    return path
+
+sim_path = simulate_forward_path(curve_spot_vec, label_to_tau, drift_at_labels, vols_at_labels, timeline_years)
+
+# --- Plots: Simulated vs Historical for 9 tenors
+fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
+for ax, j in zip(axes.ravel(), range(len(labels))):
+    ax.plot(timeline_years, hist_path[:, j], label='Historical', lw=1.5)
+    ax.plot(timeline_years, sim_path[:, j],  label='Simulated',  lw=1.0, ls='--')
+    ax.set_title(labels[j]); ax.set_xlabel('Time t (years)'); ax.set_ylabel('f(t, τ)')
+    ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
+plt.suptitle('Forward Rates: Simulated vs Historical (by Tenor)', y=0.98)
+plt.tight_layout(); plt.show()
