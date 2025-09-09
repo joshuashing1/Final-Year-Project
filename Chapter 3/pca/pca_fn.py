@@ -35,10 +35,3 @@ class PCAFactors:
         if k > vals.size: raise ValueError(f"k={k} exceeds dimension {vals.size}")
         top = order[:k]
         return vals[top], vecs[:, top], order
-
-    # def fit(self, hist_rates: np.ndarray, axis: int = 0):
-    #     self.diff_rates_ = self.difference(hist_rates, axis)
-    #     self.sigma_ = self.covariance(self.diff_rates_)
-    #     self.princ_eigval_, self.princ_comp_, self.order_ = self.pca(self.sigma_, self.k)
-    #     self.eigvals_, self.eigvecs_ = self._eig(self.sigma_)
-    #     return self

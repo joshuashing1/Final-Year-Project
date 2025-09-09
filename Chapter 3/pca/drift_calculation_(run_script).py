@@ -52,7 +52,7 @@ print(eigvec_all.shape)
 
 # 4) Top-k principal components (sorted by descending eigenvalue)
 princ_eigval, princ_comp, order = pca.pca(sigma, k=factors)
-print("\nPrincipal eigenvalues (top-k):")
+print("\nPrincipal eigenvalues (top-3):")
 print(princ_eigval)
 
 print("\nPrincipal components (columns = PCs):")
