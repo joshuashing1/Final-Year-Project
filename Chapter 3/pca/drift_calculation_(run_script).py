@@ -47,6 +47,8 @@ eigval_all = pca.eigenvalues(sigma)
 eigvec_all = pca.eigenvectors(sigma)
 print("All eigenvalues:")
 print(eigval_all)
+print(eigval_all.shape)
+print(eigvec_all.shape)
 
 # 4) Top-k principal components (sorted by descending eigenvalue)
 princ_eigval, princ_comp, order = pca.pca(sigma, k=factors)
@@ -56,28 +58,40 @@ print(princ_eigval)
 print("\nPrincipal components (columns = PCs):")
 print(princ_comp)
 
-# --- Plot principal components vs tenor
-plt.figure(figsize=(9, 5))
+DPI = 100
+W_PX = 1573
+H_PX = 750
+W_IN = W_PX / DPI
+H_IN = H_PX / DPI
+
+fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
 for i in range(princ_comp.shape[1]):
-    plt.plot(Tau, princ_comp[:, i], marker='.', label=f'PC{i+1}')
-plt.title('Principal components (eigenvectors over tenor)')
-plt.xlabel(r'Tenor $\tau$ (years)')
-plt.ylabel('Loading')
-plt.legend()
-plt.tight_layout()
+    ax.plot(Tau, princ_comp[:, i], marker='.', label=f'PC{i+1}')
+ax.set_title('Principal components (Eigenvectors over tenor)', fontsize=37, fontweight="bold", pad=12)
+ax.set_xlabel(r'Tenor $T$ (years)', fontsize=32)
+ax.legend()
+ax.tick_params(axis='both', which='major', labelsize=27)
+ax.tick_params(axis='both', which='minor', labelsize=27)
+fig.tight_layout()
+save_path = "principal_components.png"
+plt.savefig(save_path, dpi=DPI)
 plt.show()
 
-vols = VolatilityFitter.from_pca(princ_eigval, princ_comp)  # shape [n_tenor, k]
+vols = VolatilityFitter.from_pca(princ_eigval, princ_comp)
 print("vols shape:", vols.shape)
 
-plt.figure(figsize=(10, 4))
+fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
 for i in range(vols.shape[1]):
-    plt.plot(Tau, vols[:, i], marker='.', label=f'Vol {i+1}')
-plt.xlabel(r'Tenor $\tau$ (years)')
-plt.ylabel(r'Volatility $\sigma$')
-plt.title('Discretized volatilities')
-plt.legend()
-plt.tight_layout()
+    ax.plot(Tau, vols[:, i], marker='.', label=f'Vol {i+1}')
+ax.set_title('Discretized Volatilities', fontsize=37, fontweight="bold", pad=12)
+ax.set_xlabel(r'Tenor $T$ (years)', fontsize=32)
+ax.set_ylabel("Volatility $\sigma$", fontsize=32)
+ax.legend()
+ax.tick_params(axis='both', which='major', labelsize=27)
+ax.tick_params(axis='both', which='minor', labelsize=27)
+fig.tight_layout()
+save_path = "discretized_volatility.png"
+plt.savefig(save_path, dpi=DPI)
 plt.show()
 
 vf = VolatilityFitter(Tau, vols)
@@ -90,7 +104,7 @@ for i in range(vf.k):
     plt.plot(Tau, vols[:, i], marker='.', label='Discretized')
     plt.plot(Tau, vf.models[i](Tau), label='Fitted')
     plt.title(f'Factor {i+1} fit')
-    plt.xlabel(r'Tenor $\tau$ (years)')
+    plt.xlabel(r'Tenor $T$ (years)')
     if i == 0:
         plt.ylabel('Vol')
     plt.legend()
@@ -113,7 +127,7 @@ mc_vols  = vf.predict(pick_tau)                                # shape (9, k)
 
 plt.figure(figsize=(10, 4))
 plt.plot(mc_tenors, mc_drift, marker='.')
-plt.xlabel(r'Tenor $\tau$ (years)')
+plt.xlabel(r'Tenor $T$ (years)')
 plt.title('Risk-neutral drift')
 plt.tight_layout()
 plt.show()
@@ -153,7 +167,7 @@ fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
 for ax, j in zip(axes.ravel(), range(len(labels))):
     ax.plot(timeline_years, hist_path[:, j], label='Historical', lw=1.5)
     ax.plot(timeline_years, sim_path[:, j],  label='Simulated',  lw=1.0, ls='--')
-    ax.set_title(labels[j]); ax.set_xlabel('Time t (years)'); ax.set_ylabel('f(t, τ)')
+    ax.set_title(labels[j]); ax.set_xlabel('Time t (years)'); ax.set_ylabel('f(t, T)')
     ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
-plt.suptitle('Forward Rates: Simulated vs Historical (by Tenor)', y=0.98)
+plt.suptitle('Forward Rates: Simulated vs Historical', y=0.98)
 plt.tight_layout(); plt.show()
