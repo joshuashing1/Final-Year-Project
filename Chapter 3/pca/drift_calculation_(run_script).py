@@ -69,7 +69,7 @@ for i in range(princ_comp.shape[1]):
     ax.plot(Tau, princ_comp[:, i], marker='.', label=f'PC{i+1}')
 ax.set_title('Principal components (Eigenvectors over tenor)', fontsize=37, fontweight="bold", pad=12)
 ax.set_xlabel(r'Tenor $T$ (years)', fontsize=32)
-ax.legend()
+ax.legend(fontsize=20)
 ax.tick_params(axis='both', which='major', labelsize=27)
 ax.tick_params(axis='both', which='minor', labelsize=27)
 fig.tight_layout()
@@ -86,7 +86,6 @@ for i in range(vols.shape[1]):
 ax.set_title('Discretized Volatilities', fontsize=37, fontweight="bold", pad=12)
 ax.set_xlabel(r'Tenor $T$ (years)', fontsize=32)
 ax.set_ylabel("Volatility $\sigma$", fontsize=32)
-ax.legend()
 ax.tick_params(axis='both', which='major', labelsize=27)
 ax.tick_params(axis='both', which='minor', labelsize=27)
 fig.tight_layout()
@@ -95,21 +94,24 @@ plt.savefig(save_path, dpi=DPI)
 plt.show()
 
 vf = VolatilityFitter(Tau, vols)
-vf.fit([0, 3, 3])  # broadcast or supply any list/tuple of length k
+vf.fit([0, 3, 3])  # polynomial interpolation of degrees k for principal components 1, 2, 3 resp.
 
-# Visualize fit on original tenors
-plt.figure(figsize=(15, 4))
-for i in range(vf.k):
-    plt.subplot(1, vf.k, i + 1)
-    plt.plot(Tau, vols[:, i], marker='.', label='Discretized')
-    plt.plot(Tau, vf.models[i](Tau), label='Fitted')
-    plt.title(f'Factor {i+1} fit')
-    plt.xlabel(r'Tenor $T$ (years)')
-    if i == 0:
-        plt.ylabel('Vol')
-    plt.legend()
-plt.tight_layout()
+fig, axes = plt.subplots(1, vf.k, figsize=(18, 6), dpi=DPI)
+if vf.k == 1:
+    axes = [axes]
+for i, ax in enumerate(axes):
+    ax.plot(Tau, vols[:, i], marker='.', label='Discretized')
+    ax.plot(Tau, vf.models[i](Tau), label='Fitted')
+    ax.set_title(f'Factor {i+1} fit', fontsize=22, fontweight="bold")
+    ax.set_xlabel(r'Tenor $T$ (years)', fontsize=20)
+    ax.tick_params(axis="both", which="major", labelsize=16)
+    ax.legend(fontsize=14)
+fig.tight_layout(pad=3.0, w_pad=2.0, h_pad=2.0)
+save_path = "interpolated_volatility.png"
+fig.savefig(save_path, dpi=DPI)
 plt.show()
+
+print(f"Saved figure to {save_path}")
 
 mc_tenors = np.linspace(0.0, 25.0, 51)  # based on GLC tenor structure
 mc_vols = vf.predict(mc_tenors)         
@@ -122,29 +124,38 @@ def integrate(f, x0, x1, dx=0.01):
 def m_tau(tau, models):
     return sum(integrate(m, 0.0, tau) * float(m(tau)) for m in models)
 
-mc_drift = np.array([m_tau(tau, vf.models) for tau in mc_tenors])  # shape (9,)
-mc_vols  = vf.predict(pick_tau)                                # shape (9, k)
+mc_drift = np.array([m_tau(tau, vf.models) for tau in mc_tenors])  
+mc_vols  = vf.predict(pick_tau)                                
 
-plt.figure(figsize=(10, 4))
-plt.plot(mc_tenors, mc_drift, marker='.')
-plt.xlabel(r'Tenor $T$ (years)')
-plt.title('Risk-neutral drift')
-plt.tight_layout()
+DPI = 100
+W_PX = 1573
+H_PX = 750
+W_IN = W_PX / DPI
+H_IN = H_PX / DPI
+
+fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
+ax.plot(mc_tenors, mc_drift, marker='.')
+ax.set_title("Risk-neutral drift", fontsize=37, fontweight="bold", pad=12)
+ax.set_xlabel(r"Tenor $T$ (years)", fontsize=32)
+ax.set_ylabel(r"Drift $\mu(t,T)$", fontsize=32)
+ax.tick_params(axis="both", which="major", labelsize=27)
+ax.tick_params(axis="both", which="minor", labelsize=27)
+fig.tight_layout()
+save_path = "risk_neutral_drift.png"
+fig.savefig(save_path, dpi=DPI)
 plt.show()
 
 curve_spot = np.array(Z[0,:].flatten())[0]
 
-# --- Align to requested tenors
 label_to_tau  = np.array([parse_tenor(x) for x in labels])
 label_col_idx = [int(np.where(np.isclose(Tau, t))[0][0]) for t in label_to_tau]
-curve_spot_vec = Z[0, label_col_idx].astype(float)                 # (9,)
-drift_at_labels = np.array([m_tau(t, vf.models) for t in label_to_tau])  # (9,)
-vols_at_labels  = vf.predict(label_to_tau)                         # (9, k)
+curve_spot_vec = Z[0, label_col_idx].astype(float)                 
+drift_at_labels = np.array([m_tau(t, vf.models) for t in label_to_tau])  
+vols_at_labels  = vf.predict(label_to_tau)                         
 n_days = len(T)
 timeline_years = np.arange(n_days) / 252.0
-hist_path = df[labels].to_numpy(dtype=float)                       # (n_days, 9)
+hist_path = df[labels].to_numpy(dtype=float)                       
 
-# --- Simulation (one path)
 def simulate_forward_path(f0, tau, drift, vols, tgrid, seed=123):
     f = f0.copy()
     N, K = len(tau), vols.shape[1]
@@ -162,12 +173,18 @@ def simulate_forward_path(f0, tau, drift, vols, tgrid, seed=123):
 
 sim_path = simulate_forward_path(curve_spot_vec, label_to_tau, drift_at_labels, vols_at_labels, timeline_years)
 
-# --- Plots: Simulated vs Historical for 9 tenors
 fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
-for ax, j in zip(axes.ravel(), range(len(labels))):
-    ax.plot(timeline_years, hist_path[:, j], label='Historical', lw=1.5)
-    ax.plot(timeline_years, sim_path[:, j],  label='Simulated',  lw=1.0, ls='--')
-    ax.set_title(labels[j]); ax.set_xlabel('Time t (years)'); ax.set_ylabel('f(t, T)')
-    ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
-plt.suptitle('Forward Rates: Simulated vs Historical', y=0.98)
-plt.tight_layout(); plt.show()
+for j, ax in enumerate(axes.ravel()):
+    ax.plot(timeline_years, hist_path[:, j], label="Historical", lw=1.5)
+    ax.plot(timeline_years, sim_path[:, j],  label="Simulated", ls="--", lw=1.0)
+    ax.set_title(labels[j], fontsize=16, fontweight="bold")
+    ax.set_xlabel("Time t (years)", fontsize=14)
+    ax.set_ylabel(r"$f(t, T)$", fontsize=14)
+    ax.grid(True, alpha=0.3)
+    ax.tick_params(axis="both", which="major", labelsize=12)
+    ax.legend(fontsize=12)
+fig.suptitle("Forward Rates: Simulated vs Historical", fontsize=20, fontweight="bold", y=0.98)
+fig.tight_layout(rect=[0, 0, 1, 0.96]) 
+save_path = "forward_rates_simulated_curves.png"
+fig.savefig(save_path, dpi=150)
+plt.show()
