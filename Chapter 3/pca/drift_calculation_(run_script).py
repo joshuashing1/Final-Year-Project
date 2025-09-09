@@ -67,7 +67,7 @@ H_IN = H_PX / DPI
 fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
 for i in range(princ_comp.shape[1]):
     ax.plot(Tau, princ_comp[:, i], marker='.', label=f'PC{i+1}')
-ax.set_title('Principal components (Eigenvectors over tenor)', fontsize=37, fontweight="bold", pad=12)
+ax.set_title('Principal eigenvectors', fontsize=37, fontweight="bold", pad=12)
 ax.set_xlabel(r'Tenor $T$ (years)', fontsize=32)
 ax.legend(fontsize=20)
 ax.tick_params(axis='both', which='major', labelsize=27)
