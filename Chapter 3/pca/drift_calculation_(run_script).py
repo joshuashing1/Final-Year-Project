@@ -172,6 +172,7 @@ def simulate_forward_path(f0, tau, drift, vols, tgrid, seed=123):
     return path
 
 sim_path = simulate_forward_path(curve_spot_vec, label_to_tau, drift_at_labels, vols_at_labels, timeline_years)
+print("timeline in years", timeline_years.shape)
 
 fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
 for j, ax in enumerate(axes.ravel()):
