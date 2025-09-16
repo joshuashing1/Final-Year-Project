@@ -50,18 +50,6 @@ def fwd_curves_plot(maturities_years, fitted_curves, title, save_path):
     ax.set_title(title, fontsize=37, fontweight="bold", pad=12)
     ax.set_ylim(-2, 10)
     ax.set_xlim(left=0, right=x_max)
-    
-    # info = (
-    #     r"• Network: VAE" # change description accordingly
-    #     "\n"
-    #     r"• MC Samples: 5"
-    # )
-    # ax.text(
-    #     0.76, 0.80, info,
-    #     transform=ax.transAxes,
-    #     fontsize=25,
-    #     bbox=dict(boxstyle="square", facecolor="white", edgecolor="darkblue", linewidth=1.5)
-    # )
 
     fig.tight_layout()
     plt.savefig(save_path, dpi=200)

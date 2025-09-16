@@ -94,16 +94,12 @@ def fwd_curves_evolution(maturities_years, X, title, save_path, t_index=None):
         alpha=0.97,
     )
 
-    # Labels & style
     ax.set_xlabel("Tenor T (years)", fontsize=22, labelpad=12)
     ax.set_ylabel("Time t (index)", fontsize=22, labelpad=12)
     ax.set_zlabel("Forward rate f(t, T)", fontsize=22, labelpad=10)
-
     ax.tick_params(axis="both", which="major", labelsize=16)
     ax.tick_params(axis="both", which="minor", labelsize=16)
-    ax.view_init(elev=28, azim=-55)  # similar perspective to your screenshot
-
-    # Title & colorbar
+    ax.view_init(elev=28, azim=-55) 
     fig.suptitle(title, fontsize=48, fontweight="bold", y=0.95)
     cbar = fig.colorbar(surf, shrink=0.8, aspect=24, pad=0.08)
     cbar.set_label("f(t, T)", fontsize=18)

@@ -94,7 +94,9 @@ def process_fwd_csv_vae(
     avg_rmse = float(np.sqrt(np.mean((X_smooth - X) ** 2)))
     print(f"[{title}] VAE fit average RMSE on full grid: {avg_rmse:.6f}")
 
-    pd.DataFrame(X_smooth, columns=tenor_labels).to_csv(f"vae_reconstructed_fwd_rates.csv", index=False)
+    recon_df = pd.DataFrame(X_smooth, columns=tenor_labels)
+    recon_df.insert(0, "t", T)  
+    recon_df.to_csv("vae_reconstructed_fwd_rates.csv", index=False)
 
     if save_latent:
         lat_mu = vae.get_latent(Xz_real).astype(np.float32)
@@ -106,6 +108,11 @@ def process_fwd_csv_vae(
                      for row in X_smooth]
     fig_path = f"vae_reconstructed_fwd_curves.png"
     fwd_curves_plot(maturities_years, fitted_curves, title=title, save_path=fig_path)
+    
+    coeffs_mat = np.vstack([fc.coeffs for fc in fitted_curves])  # shape = (n_obs, 4)
+    coeffs_df = pd.DataFrame(coeffs_mat, columns=["a3", "a2", "a1", "a0"])
+    coeffs_df.insert(0, "t", T)
+    coeffs_df.to_csv("vae_poly_coeffs.csv", index=False)
 
     return avg_rmse
 
