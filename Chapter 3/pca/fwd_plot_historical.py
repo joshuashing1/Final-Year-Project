@@ -134,7 +134,7 @@ def main():
 
     fwd_curves_plot(
         Tau, fitted_curves,
-        title="GBP historical forward curves",
+        title="GBP reconstructed forward curves",
         save_path="historical_fwd_curves.png",
     )
 
