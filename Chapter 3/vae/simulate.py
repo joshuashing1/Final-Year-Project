@@ -46,18 +46,40 @@ def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
     return path, Mu
 
 def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_forward_curves.png"):
-    fig, ax = plt.subplots(figsize=(12,6))
+    """2D plot of reconstructed forward curves with publication-style formatting."""
+    # Match the dimensions from fwd_curves_plot
+    DPI = 100
+    W_IN = 1573 / DPI
+    H_IN = 750  / DPI
+    fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
+
+    # Plot each forward curve
     for row in F:
         ax.plot(taus, row*100, lw=0.8, alpha=0.7)
-    ax.set_xlabel("Maturity (Years)", fontsize=14, fontweight="bold")
-    ax.set_ylabel("Interest Rate (%)", fontsize=14, fontweight="bold")
-    ax.set_title(title, fontsize=20, fontweight="bold")
+
+    # Tick and label formatting
+    TICK_FS = 27
+    ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
+    ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
+    ax.xaxis.get_offset_text().set_size(TICK_FS)
+    ax.yaxis.get_offset_text().set_size(TICK_FS)
+
+    # Labels and title
+    ax.set_xlabel("Maturity (Years)", fontsize=32)
+    ax.set_ylabel("Interest Rate (%)", fontsize=32)
+    ax.set_title(title, fontsize=37, fontweight="bold", pad=12)
+
+    # Axes limits
+    ax.set_xlim(left=0, right=float(np.nanmax(taus)))
     ax.set_ylim(-2, 10)
     ax.grid(alpha=0.3)
+
     fig.tight_layout()
-    fig.savefig(save_path, dpi=150)
-    plt.close(fig)
+    fig.savefig(save_path, dpi=200)
+    plt.show()
+    print(f"Saved figure to {save_path}")
     return save_path
+
 
 def simulation_plots(tgrid, hist, sim, labels, save_path="vae_fwd_rates_simulated_curves.png"):
     fig, axes = plt.subplots(3,3, figsize=(13,9), sharex=True); axes = axes.ravel()
