@@ -45,7 +45,7 @@ def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
         path[t] = path[t-1] + mu_tm1*DT + Sigma_tm1 @ dW
     return path, Mu
 
-def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_forward_curves.png"):
+def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_fwd_curves.png"):
     """2D plot of reconstructed forward curves with publication-style formatting."""
     # Match the dimensions from fwd_curves_plot
     DPI = 100
