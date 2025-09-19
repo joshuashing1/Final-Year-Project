@@ -45,7 +45,7 @@ def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
         path[t] = path[t-1] + mu_tm1*DT + Sigma_tm1 @ dW
     return path, Mu
 
-def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_path="latent_factor_calibrated_fwd_curves.png"):
+def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_forward_curves.png"):
     fig, ax = plt.subplots(figsize=(12,6))
     for row in F:
         ax.plot(taus, row*100, lw=0.8, alpha=0.7)
@@ -59,7 +59,7 @@ def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_
     plt.close(fig)
     return save_path
 
-def simulation_plots(tgrid, hist, sim, labels, save_path="simulated_curves.png"):
+def simulation_plots(tgrid, hist, sim, labels, save_path="vae_fwd_rates_simulated_curves.png"):
     fig, axes = plt.subplots(3,3, figsize=(13,9), sharex=True); axes = axes.ravel()
     for j, ax in enumerate(axes):
         # Historical line (black default)
