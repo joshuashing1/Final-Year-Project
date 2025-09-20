@@ -32,9 +32,9 @@ class PolynomialInterpolator:
 def _extract_tenor_matrix(df: pd.DataFrame):
     """Return (X, tenor_labels, maturities_years, T). Drops a 'time' column if present."""
     # Time index
-    if "time" in df.columns:
-        T = df["time"].to_numpy(dtype=np.int32)
-        df = df.drop(columns=["time"])
+    if "t" in df.columns:
+        T = df["t"].to_numpy(dtype=np.int32)
+        df = df.drop(columns=["t"])
     else:
         T = np.arange(len(df), dtype=np.int32)
 
