@@ -10,7 +10,7 @@ from volatility_fn import VolatilityFitter, PolynomialInterpolator
 
 df = pd.read_csv(r"Chapter 3\data\GLC_fwd_curve_raw.csv")
 df = df / 100.0
-df = df.set_index("time")
+df = df.set_index("t")
 
 def parse_tenor(s: str) -> float:
     """Return tenor in years from labels like '1M','6M','1.0Y','10.0Y'."""

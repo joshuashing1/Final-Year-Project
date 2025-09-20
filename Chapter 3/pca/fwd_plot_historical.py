@@ -117,9 +117,9 @@ def main():
     csv_path = r"Chapter 3\data\GLC_fwd_curve_raw.csv"
     df = pd.read_csv(csv_path)
 
-    if "time" in df.columns:
-        t_index = df["time"].to_numpy()
-        df = df.set_index("time")
+    if "t" in df.columns:
+        t_index = df["t"].to_numpy()
+        df = df.set_index("t")
     else:
         t_index = np.arange(len(df), dtype=int)
 
