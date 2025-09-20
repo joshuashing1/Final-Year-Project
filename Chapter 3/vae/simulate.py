@@ -76,17 +76,34 @@ def drift_from_sigma(Sigma_t, taus, deg=3):
     return mu
 
 def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
+    """
+    Euler–Maruyama with explicit Musiela shift:
+        f_{t+dt}(τ) = f_t(τ) + [ α_HJM(t,τ) + ∂f/∂τ (t,τ) ] dt + Σ(t,τ) dW_t
+    where α_HJM comes from drift_from_sigma(Sigma_t, taus, POLY_DEG)
+    and Σ(t,τ) is the tenor-by-factor vol surface.
+    """
     rng = np.random.default_rng(rng_seed)
-    T,N,K = Sigma.shape
-    path = np.empty((T,N)); path[0] = F_hat[0]
-    Mu   = np.empty((T-1,N))
-    for t in range(1,T):
-        Sigma_tm1 = Sigma[t-1]
-        mu_tm1    = drift_from_sigma(Sigma_tm1, taus, POLY_DEG)
-        Mu[t-1]   = mu_tm1
-        dW        = rng.normal(size=K)*np.sqrt(DT)
-        path[t]   = path[t-1] + mu_tm1*DT + Sigma_tm1 @ dW
+    T, N, K = Sigma.shape
+    path = np.empty((T, N), float)
+    path[0] = F_hat[0]                     # initial curve
+    Mu = np.empty((T-1, N), float)         # store α_HJM (optional)
+
+    for t in range(1, T):
+        fprev = path[t-1]                  # f(t-1, τ_•)
+        Sigma_tm1 = Sigma[t-1]             # (N, K)
+        alpha_hjm = drift_from_sigma(Sigma_tm1, taus, POLY_DEG)  # (N,)
+        dfdtau = np.gradient(fprev, taus)  # ∂f/∂τ at current curve, vectorized
+
+        # Brownian shocks for K factors
+        dW = rng.normal(size=K) * np.sqrt(DT)   # (K,)
+        diffusion = Sigma_tm1 @ dW              # (N,)
+
+        # Advance one step
+        Mu[t-1] = alpha_hjm
+        path[t] = fprev + (alpha_hjm + dfdtau) * DT + diffusion
+
     return path, Mu
+
 
 def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_fwd_curves.png"):
     DPI, W_IN, H_IN = 100, 1573/100, 750/100

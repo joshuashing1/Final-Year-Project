@@ -157,19 +157,33 @@ timeline_years = np.arange(n_days) / 252.0
 hist_path = df[labels].to_numpy(dtype=float)                       
 
 def simulate_forward_path(f0, tau, drift, vols, tgrid, seed=123):
+    """
+    Euler–Maruyama simulation of forward curve with Musiela shift.
+    Uses np.gradient for ∂f/∂τ instead of manual finite differences.
+    """
     f = f0.copy()
     N, K = len(tau), vols.shape[1]
-    path = np.empty((len(tgrid), N), float); path[0] = f
-    rng = np.random.default_rng(seed); vols_T = vols.T
+    path = np.empty((len(tgrid), N), float)
+    path[0] = f
+    rng = np.random.default_rng(seed)
+
     for it in range(1, len(tgrid)):
-        dt = tgrid[it] - tgrid[it-1]; z = rng.normal(size=K); fprev = f.copy()
-        for i in range(N):
-            i1 = i+1 if i < N-1 else i-1
-            f[i] = (fprev[i] + drift[i]*dt
-                    + np.dot(vols_T[:, i], z)*np.sqrt(dt)
-                    + (fprev[i1]-fprev[i])/(tau[i1]-tau[i]) * dt)
+        dt = tgrid[it] - tgrid[it-1]
+        fprev = f.copy()
+
+        # Musiela shift term (∂f/∂τ) using np.gradient
+        dfdtau = np.gradient(fprev, tau)
+
+        # Brownian shocks
+        z = rng.normal(size=K)
+        diffusion = vols @ (z * np.sqrt(dt))   # (N,)
+
+        # Euler update
+        f = fprev + drift * dt + diffusion + dfdtau * dt
         path[it] = f
+
     return path
+
 
 sim_path = simulate_forward_path(curve_spot_vec, label_to_tau, drift_at_labels, vols_at_labels, timeline_years)
 print("timeline in years", timeline_years.shape)
