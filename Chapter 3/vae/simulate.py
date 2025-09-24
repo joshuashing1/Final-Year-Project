@@ -16,7 +16,7 @@ def parse_tenor(s):
     s=str(s).strip().upper()
     return float(s[:-1])/12 if s.endswith("M") else (float(s[:-1]) if s.endswith("Y") else float(s))
 
-def calibrate_and_vol_surface(fwd_csv, lat_csv, eps=EPS):
+def vol_surface(fwd_csv, lat_csv, eps=EPS):
     F = pd.read_csv(fwd_csv).sort_values("t")
     Z = pd.read_csv(lat_csv).sort_values("t")
     M = pd.merge(F, Z, on="t", how="inner")
@@ -33,15 +33,16 @@ def calibrate_and_vol_surface(fwd_csv, lat_csv, eps=EPS):
     Zm   = M[zcols].to_numpy(float)          # (T,3)
 
     # OLS across time for each tenor
-    Lambda = np.linalg.lstsq(Zm, Y, rcond=None)[0].T  # (N,3)
+    Omega = np.linalg.lstsq(Zm, Y, rcond=None)[0].T  # (N,3)
 
     # Reconstruct forward curves & vol surface
-    Y_hat = Zm @ Lambda.T                     # (T,N)
+    Y_hat = Zm @ Omega.T                     # (T,N)
     F_hat = f0_t[:,None] * np.exp(Y_hat)      # (T,N)
-    Sigma = F_hat[:,:,None] * Lambda[None,:,:]# (T,N,3)
+    Sigma = F_hat[:,:,None] * Omega[None,:,:]# (T,N,3)
+    print(Sigma.shape)
 
     taus = np.array([parse_tenor(x) for x in ten])
-    return F_hat, Xf, taus, Lambda, Sigma, M["t"].to_numpy(), ten
+    return F_hat, Xf, taus, Omega, Sigma, M["t"].to_numpy(), ten
 
 def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
     """Load historical forward curves CSV and align rows by time and columns by tenor to match calibration."""
@@ -65,15 +66,15 @@ def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
         Xh = Xpad
     return Xh
 
-def drift_from_sigma(Sigma_t, taus, deg=3):
+def drift_computation(Sigma_t, taus, deg=3):
     N,K = Sigma_t.shape
-    mu = np.zeros(N)
+    alpha = np.zeros(N)
     for k in range(K):
         ck = np.polyfit(taus, Sigma_t[:,k], deg)
         sigma_tau  = np.polyval(ck, taus)
-        integ_tau  = np.polyval(np.polyint(ck), taus)
-        mu += sigma_tau * integ_tau
-    return mu
+        integ_tau = np.array([np.trapz(sigma_tau[:j+1], taus[:j+1]) for j in range(N)])
+        alpha += sigma_tau * integ_tau
+    return alpha
 
 def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
     """
@@ -86,12 +87,12 @@ def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
     T, N, K = Sigma.shape
     path = np.empty((T, N), float)
     path[0] = F_hat[0]                     # initial curve
-    Mu = np.empty((T-1, N), float)         # store α_HJM (optional)
+    Alpha = np.empty((T-1, N), float)         # store α_HJM (optional)
 
     for t in range(1, T):
         fprev = path[t-1]                  # f(t-1, τ_•)
         Sigma_tm1 = Sigma[t-1]             # (N, K)
-        alpha_hjm = drift_from_sigma(Sigma_tm1, taus, POLY_DEG)  # (N,)
+        alpha_hjm = drift_computation(Sigma_tm1, taus, POLY_DEG)  # (N,)
         dfdtau = np.gradient(fprev, taus)  # ∂f/∂τ at current curve, vectorized
 
         # Brownian shocks for K factors
@@ -99,13 +100,12 @@ def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
         diffusion = Sigma_tm1 @ dW              # (N,)
 
         # Advance one step
-        Mu[t-1] = alpha_hjm
+        Alpha[t-1] = alpha_hjm
         path[t] = fprev + (alpha_hjm + dfdtau) * DT + diffusion
 
-    return path, Mu
+    return path, Alpha
 
-
-def plot_all_forward_curves(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_fwd_curves.png"):
+def fwd_curves_plot(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_fwd_curves.png"):
     DPI, W_IN, H_IN = 100, 1573/100, 750/100
     fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
     for row in F: ax.plot(taus, row*100, lw=0.8, alpha=0.7)
@@ -135,16 +135,16 @@ def simulation_plots(tgrid, hist, sim, labels, save_path="vae_fwd_rates_simulate
 
 if __name__=="__main__":
     # 1) Calibrate on VAE outputs (keeps simulation logic identical)
-    F_hat, F_hist_calib, taus, Lambda, Sigma, times, ten = calibrate_and_vol_surface(FWD, LAT)
+    F_hat, F_hist_calib, taus, Omega, Sigma, times, ten = vol_surface(FWD, LAT)
 
     # 2) Plot calibrated forward curves (fan)
-    plot_all_forward_curves(F_hat, taus, title="GBP Reconstructed Forward Curves")
+    fwd_curves_plot(F_hat, taus, title="GBP Reconstructed Forward Curves")
 
     # 3) Load REAL historical curves for plotting (aligned to calibration times & tenors)
     X_hist = align_historical_forward_curves(HIST_FWD, times, ten)
 
     # 4) Simulate with calibrated Sigma (unchanged logic)
-    sim_full, Mu = simulate_path(F_hat, Sigma, taus)
+    sim_full, Alpha = simulate_path(F_hat, Sigma, taus)
 
     # 5) Select the 9 labeled tenors and plot hist vs sim (hist now from HIST_FWD)
     want = np.array([parse_tenor(x) for x in TENOR_LABELS])
