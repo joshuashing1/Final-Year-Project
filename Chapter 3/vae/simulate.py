@@ -1,4 +1,3 @@
-# dynamic_hjm_simulation.py
 import numpy as np, pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -47,9 +46,7 @@ def vol_surface(fwd_csv, lat_csv, eps=EPS):
 def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
     """Load historical forward curves CSV and align rows by time and columns by tenor to match calibration."""
     H = pd.read_csv(hist_csv).sort_values("t")
-    # keep only reference times
     H = pd.merge(pd.DataFrame({"t": times_ref}), H, on="t", how="inner")
-    # intersect tenors in case of mismatch
     ten_hist = [c for c in H.columns if c!="t"]
     ten_use  = [c for c in ten_ref if c in ten_hist]
     Xh = H[ten_use].to_numpy(float)
@@ -67,11 +64,11 @@ def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
     return Xh
 
 def drift_computation(Sigma_t, taus, deg=3):
-    N,K = Sigma_t.shape
+    N,P = Sigma_t.shape
     alpha = np.zeros(N)
-    for k in range(K):
-        ck = np.polyfit(taus, Sigma_t[:,k], deg)
-        sigma_tau  = np.polyval(ck, taus)
+    for p in range(P):
+        cp = np.polyfit(taus, Sigma_t[:,p], deg)
+        sigma_tau  = np.polyval(cp, taus)
         integ_tau = np.array([np.trapz(sigma_tau[:j+1], taus[:j+1]) for j in range(N)])
         alpha += sigma_tau * integ_tau
     return alpha
@@ -84,7 +81,7 @@ def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
     and Σ(t,τ) is the tenor-by-factor vol surface.
     """
     rng = np.random.default_rng(rng_seed)
-    T, N, K = Sigma.shape
+    T, N, P = Sigma.shape
     path = np.empty((T, N), float)
     path[0] = F_hat[0]                     # initial curve
     Alpha = np.empty((T-1, N), float)         # store α_HJM (optional)
@@ -94,12 +91,8 @@ def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
         Sigma_tm1 = Sigma[t-1]             # (N, K)
         alpha_hjm = drift_computation(Sigma_tm1, taus, POLY_DEG)  # (N,)
         dfdtau = np.gradient(fprev, taus)  # ∂f/∂τ at current curve, vectorized
-
-        # Brownian shocks for K factors
-        dW = rng.normal(size=K) * np.sqrt(DT)   # (K,)
+        dW = rng.normal(size=P) * np.sqrt(DT)   # (K,)
         diffusion = Sigma_tm1 @ dW              # (N,)
-
-        # Advance one step
         Alpha[t-1] = alpha_hjm
         path[t] = fprev + (alpha_hjm + dfdtau) * DT + diffusion
 
@@ -123,8 +116,10 @@ def simulation_plots(tgrid, hist, sim, labels, save_path="vae_fwd_rates_simulate
     fig, axes = plt.subplots(3,3, figsize=(13,9), sharex=True); axes = axes.ravel()
     for j, ax in enumerate(axes):
         ax.plot(tgrid, hist[:,j], lw=1.6, label="Historical")
-        if j == 0: ax.plot(tgrid, sim[:,j], lw=1.2, ls="--", color="red", label="Simulated")
-        else:      ax.plot(tgrid, sim[:,j], lw=1.2, ls="--", label="Simulated")
+        if j == 0:
+            ax.plot(tgrid, sim[:,j], lw=1.2, ls="--", color="red", label="no volatility")
+        else:
+            ax.plot(tgrid, sim[:,j], lw=1.2, ls="--", label="Simulated")
         ax.set_title(labels[j], fontsize=13, fontweight='bold')
         if j%3==0: ax.set_ylabel("f(t,T)")
         if j//3==2: ax.set_xlabel("Time (years)")
