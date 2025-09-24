@@ -108,11 +108,6 @@ def process_fwd_csv_vae(
                      for row in X_smooth]
     fig_path = f"vae_reconstructed_fwd_curves.png"
     fwd_curves_plot(maturities_years, fitted_curves, title=title, save_path=fig_path)
-    
-    coeffs_mat = np.vstack([fc.coeffs for fc in fitted_curves])  # shape = (n_obs, 4)
-    coeffs_df = pd.DataFrame(coeffs_mat, columns=["a3", "a2", "a1", "a0"])
-    coeffs_df.insert(0, "t", T)
-    coeffs_df.to_csv("vae_poly_coeffs.csv", index=False)
 
     return avg_rmse
 
