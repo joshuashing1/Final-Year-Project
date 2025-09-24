@@ -130,7 +130,7 @@ def main():
             lr=1e-3,
             activation="relu",
             noise_std=0.00,
-            latent_dim=1,
+            latent_dim=3,
             num_latent_samples=K,
             save_latent=True,
             kld_beta=0.01,
