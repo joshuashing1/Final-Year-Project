@@ -83,6 +83,7 @@ sigma = pca.covariance(diff_rates)
 princ_eigval, princ_comp, order = pca.pca(sigma, k=factors)   # eigvals desc, PCs columns
 
 vols = vols_from_pca(princ_eigval, princ_comp)                # shape [n_tenor, k]
+print(vols)
 
 DPI, W_PX, H_PX = 100, 1573, 750
 W_IN, H_IN = W_PX / DPI, H_PX / DPI
