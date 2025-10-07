@@ -146,7 +146,7 @@ out.to_csv("simulated_forward_P_measure.csv")
 
 fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
 for j, ax in enumerate(axes.ravel()):
-    ax.plot(timeline_years, hist_path[:, j], label="Historical GBP", lw=1.5)
+    ax.plot(timeline_years, hist_path[:, j], label="Historical", lw=1.5)
     ax.plot(timeline_years, sim_path[:, j],  label="Simulated", ls="--", lw=1.0)
     ax.set_title(labels[j], fontsize=16, fontweight="bold")
     ax.set_xlabel("Time t (years)", fontsize=14)
