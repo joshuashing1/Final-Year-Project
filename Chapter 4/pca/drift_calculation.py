@@ -113,9 +113,15 @@ H_IN = 750  / DPI
 
 fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
 rHist.loc[common_t].plot(ax=ax, lw=1.5)
-ax.set_title("Short Rate $r_t$ (historical)", fontsize=18, fontweight="bold")
-ax.set_xlabel("Index t", fontsize=14)
-ax.set_ylabel(r"$r_t$", fontsize=14)
+ax.set_title("Short Rate $r_t$ (historical)", fontsize=37, fontweight="bold")
+
+TICK_FS = 27
+ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
+ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
+ax.xaxis.get_offset_text().set_size(TICK_FS)
+ax.yaxis.get_offset_text().set_size(TICK_FS)
+ax.set_xlabel("Time t (years)", fontsize=32)
+ax.set_ylabel(r"$r_t$", fontsize=32)
 ax.grid(True, alpha=0.3)
 fig.tight_layout()
 plt.savefig("short_rate.png", dpi=DPI)
