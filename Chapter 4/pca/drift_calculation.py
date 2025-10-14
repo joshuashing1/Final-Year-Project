@@ -38,8 +38,8 @@ def simulate_fwd_path(
     drift_vals: np.ndarray,
     vols_at_tau: np.ndarray,
     tgrid: np.ndarray,
-    r_series: np.ndarray,
-    fQ_series: np.ndarray,
+    r_mean: float,
+    f_mean: np.ndarray,
     seed: int = 123
 ):
     """
@@ -64,12 +64,12 @@ def simulate_fwd_path(
         dfdtau = np.gradient(fprev, tau)
 
         # Real-world correction term (componentwise over τ grid)
-        real_world_correction_term = (r_series[it - 1] - fQ_series[it - 1]) / np.maximum(t_prev + tau, eps)
+        risk_prem = (r_mean - f_mean) / np.maximum(t_prev + tau, eps)
 
         z = rng.normal(size=K)
         diffusion = vols_at_tau @ (z * np.sqrt(dt))  # shape (N,)
 
-        f = fprev + (drift_vals + real_world_correction_term + dfdtau) * dt + diffusion
+        f = fprev + (drift_vals + risk_prem + dfdtau) * dt + diffusion
         path[it] = f
     return path
 
@@ -97,22 +97,26 @@ coeff_list      = fit_poly_per_factor(Tau_vol, Vols_tab, degrees=[0, 3, 3])
 vols_at_labels  = eval_polys(coeff_list, pick_tau)  # [N, K]
 drift_at_labels = np.array([drift_m_tau(t, coeff_list) for t in pick_tau])
 
-common_t   = fQ_df.index.intersection(rHist.index).intersection(df_hist.index)
-fQ_sel     = fQ_df.loc[common_t, labels].to_numpy(float)   # [T, N]
-r_sel      = rHist.loc[common_t].to_numpy(float)           # [T]
-hist_path  = df_hist.loc[common_t, labels].to_numpy(float) # [T, N]
+t   = fQ_df.index.intersection(rHist.index).intersection(df_hist.index)
+fQ_sel     = fQ_df.loc[t, labels].to_numpy(float)   # [T, N]
+r_sel      = rHist.loc[t].to_numpy(float)           # [T]
+hist_path  = df_hist.loc[t, labels].to_numpy(float) # [T, N]
 
 print("\nQ-measure forward rates parsed for each tenor (first few rows):")
-print(pd.DataFrame(fQ_sel, index=common_t, columns=labels).head())
+print(pd.DataFrame(fQ_sel, index=t, columns=labels).head())
 
-timeline_years = (common_t.to_numpy(float) - common_t.min()) / DAY2YR
+timeline_years = (t.to_numpy(float) - t.min()) / DAY2YR
+
+r_mean = float(rHist.loc[t].mean())
+f_mean = df_hist.loc[t, labels].to_numpy(float).mean(axis=0) # take mean wrt time dimension
 
 DPI = 100
 W_IN = 1573 / DPI
 H_IN = 750  / DPI
 
 fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
-rHist.loc[common_t].plot(ax=ax, lw=1.5)
+rHist.loc[t].plot(ax=ax, lw=1.5)
+ax.axhline(y=r_mean, linestyle=":", lw=2.0, color="green", label=fr"Mean $\overline{{r}}$ = {r_mean:.4f}")
 ax.set_title("Short Rate $r_t$ (historical)", fontsize=37, fontweight="bold")
 
 TICK_FS = 27
@@ -127,6 +131,33 @@ fig.tight_layout()
 plt.savefig("short_rate.png", dpi=DPI)
 plt.show()
 
+eps = 1e-12
+risk_prem = (r_mean - f_mean) / np.maximum(pick_tau, eps)
+
+for lbl, val in zip(labels, risk_prem):
+    print(f"{lbl:>6}: {val:.6f}")
+
+fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
+ax.scatter(pick_tau, risk_prem, marker='o', linestyle='-', color='green', s=120, zorder=3)
+
+ax.set_xticks([])
+ax.set_xticklabels([])
+ax.tick_params(axis='x', which='both', bottom=False, top=False)
+
+for x, y, lbl in zip(pick_tau, risk_prem, labels):
+    ax.text(x, y + 0.00005, lbl, ha='center', va='bottom', fontsize=20, color='black')
+
+ax.set_xlabel(r"Tenor $\tau$", fontsize=30)
+ax.set_ylabel(r"Risk Premium", fontsize=26)
+ax.set_title("Risk Premium", fontsize=35, fontweight="bold")
+
+ax.grid(True, alpha=0.3)
+ax.tick_params(axis="both", which="major", labelsize=24)
+ax.tick_params(axis="both", which="minor", labelsize=20)
+fig.tight_layout()
+plt.savefig("risk_premium.png", dpi=DPI)
+plt.show()
+
 curve_spot_vec = fQ_sel[0] # initial forward curve
 
 sim_path = simulate_fwd_path(
@@ -135,12 +166,12 @@ sim_path = simulate_fwd_path(
     drift_vals=drift_at_labels,
     vols_at_tau=vols_at_labels,
     tgrid=timeline_years,
-    r_series=r_sel,
-    fQ_series=fQ_sel,
+    r_mean=r_mean,
+    f_mean=f_mean,
     seed=42
 )
 
-out = pd.DataFrame(sim_path, index=common_t, columns=labels)
+out = pd.DataFrame(sim_path, index=t, columns=labels)
 out.index.name = "t"
 out.to_csv("simulated_forward_P_measure.csv")
 
