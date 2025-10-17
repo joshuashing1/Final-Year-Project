@@ -80,8 +80,8 @@ def export_volatility(Sigma: np.ndarray, taus: np.ndarray, labels: list[str], dt
 
     # slice the nine columns; build time grid in years
     sig_sel = sig[:, idx]                      # (T, 9)
-    tgrid = np.arange(T) * dt
-
+    tgrid = np.arange(1, T + 1, dtype=int)
+    
     df = pd.DataFrame(sig_sel, columns=labels)
     df.insert(0, "t", tgrid)                   # y-axis as time (rows)
 

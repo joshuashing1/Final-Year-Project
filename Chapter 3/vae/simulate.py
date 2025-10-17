@@ -90,11 +90,11 @@ def simulate_path2(F_hat, Sigma, taus, rng_seed=RNG_SEED):
 
     for t in range(1, T):
         fprev = path[t-1]                  # f(t-1, τ_•)
-        Sigma_tm1 = Sigma[t-1]             # (N, K)
-        alpha_hjm = drift_computation(Sigma_tm1, taus, POLY_DEG)  # (N,)
+        Sigma_curr = Sigma[t-1]             # (N, K)
+        alpha_hjm = drift_computation(Sigma_curr, taus, POLY_DEG)  # (N,)
         dfdtau = np.gradient(fprev, taus)  # ∂f/∂τ at current curve, vectorized
         dW = rng.normal(size=P) * np.sqrt(DT)   # (K,)
-        diffusion = Sigma_tm1 @ dW              # (N,)
+        diffusion = Sigma_curr @ dW              # (N,)
         Alpha[t-1] = alpha_hjm
         path[t] = fprev + (alpha_hjm + dfdtau) * DT + diffusion
 
