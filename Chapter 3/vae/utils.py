@@ -55,3 +55,4 @@ def fwd_curves_plot(maturities_years, fitted_curves, title, save_path):
     plt.savefig(save_path, dpi=200)
     plt.show()
     print(f"Saved figure to {save_path}")
+    

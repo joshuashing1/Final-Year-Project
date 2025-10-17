@@ -65,7 +65,7 @@ def simulate_fwd_path(
 
         # Real-world correction term (componentwise over τ grid)
         risk_prem = (r_mean - f_mean) / np.maximum(t_prev + tau, eps)
-
+        
         z = rng.normal(size=K)
         diffusion = vols_at_tau @ (z * np.sqrt(dt))  # shape (N,)
 
@@ -133,6 +133,11 @@ plt.show()
 
 eps = 1e-12
 risk_prem = (r_mean - f_mean) / np.maximum(pick_tau, eps)
+risk_df = pd.DataFrame({
+    "tenor": labels,
+    "risk_premium": risk_prem
+})
+risk_df.to_csv("risk_premium_values.csv", index=False)
 
 for lbl, val in zip(labels, risk_prem):
     print(f"{lbl:>6}: {val:.6f}")
