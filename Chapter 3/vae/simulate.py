@@ -2,8 +2,6 @@ import numpy as np, pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from utils import export_vol
-
 BASE = Path("Chapter 3")
 VAE_DIR = BASE / "vae"
 DATA_DIR = BASE / "data"
