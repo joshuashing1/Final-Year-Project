@@ -1,4 +1,5 @@
-import numpy as np
+import numpy as np, pandas as pd
+from pathlib import Path
 import matplotlib.pyplot as plt
 
 def parse_tenor(s: str) -> float:
@@ -55,4 +56,36 @@ def fwd_curves_plot(maturities_years, fitted_curves, title, save_path):
     plt.savefig(save_path, dpi=200)
     plt.show()
     print(f"Saved figure to {save_path}")
-    
+
+def scalar_sigma(Sigma: np.ndarray) -> np.ndarray:
+    """
+    Sigma: (T, N, K) factor loadings used in the simulation.
+    Returns: sig (T, N) where sig[t, n] = sqrt(sum_k Sigma[t, n, k]^2).
+    """
+    return np.linalg.norm(Sigma, axis=2)
+
+def export_volatility(Sigma: np.ndarray, taus: np.ndarray, labels: list[str], dt: float,
+                     out_path: Path = "volatility_evolution.csv") -> Path:
+    """
+    Build a CSV with rows=time and columns=selected tenor labels.
+    Time 't' is in years on a uniform grid: t = 0, dt, 2dt, ...
+    """
+    # scalarize multi-factor vol to one σ per tenor
+    sig = scalar_sigma(Sigma)                  # (T, N)
+    T, N = sig.shape
+
+    # map desired labels -> τ grid indices (must be exact matches in taus)
+    want = np.array([parse_tenor(x) for x in labels], float)
+    idx = [int(np.where(np.isclose(taus, w))[0][0]) for w in want]  # raises if not found
+
+    # slice the nine columns; build time grid in years
+    sig_sel = sig[:, idx]                      # (T, 9)
+    tgrid = np.arange(T) * dt
+
+    df = pd.DataFrame(sig_sel, columns=labels)
+    df.insert(0, "t", tgrid)                   # y-axis as time (rows)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_path, index=False)
+    print(f"Saved σ(t,τ) CSV to {out_path}")
+    return out_path

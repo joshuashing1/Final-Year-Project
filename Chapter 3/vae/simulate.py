@@ -2,6 +2,8 @@ import numpy as np, pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+from utils import export_volatility
+
 BASE = Path("Chapter 3")
 VAE_DIR = BASE / "vae"
 DATA_DIR = BASE / "data"
@@ -140,6 +142,8 @@ if __name__=="__main__":
 
     # 4) Simulate with calibrated Sigma (unchanged logic)
     sim_full, Alpha = simulate_path(F_hat, Sigma, taus)
+    
+    sigma_csv_path = export_volatility(Sigma, taus, TENOR_LABELS, DT, VAE_DIR/"sigma_selected_tenors.csv")
 
     # 5) Select the 9 labeled tenors and plot hist vs sim (hist now from HIST_FWD)
     want = np.array([parse_tenor(x) for x in TENOR_LABELS])
