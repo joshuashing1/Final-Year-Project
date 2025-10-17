@@ -41,7 +41,7 @@ def drift_m_tau(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -
     return float(s)
 
 
-def simulate_fwd_path(f0, tau, drift_vals, Sigma, tgrid, seed=123):
+def simulate_path1(f0, tau, drift_vals, Sigma, tgrid, seed=123):
     """
     Euler–Maruyama with Musiela shift. vols_at_tau: [N, K] vol columns per factor.
     Drift supplied at grid 'tau' as drift_vals (length N).
@@ -140,7 +140,7 @@ drift_at_labels = np.array([drift_m_tau(t, coeff_list) for t in label_to_tau])
 vols_at_labels  = eval_polys(coeff_list, label_to_tau)          # shape [N, K]
 
 timeline_years = np.arange(len(T)) / 252.0
-sim_path = simulate_fwd_path(curve_spot_vec, label_to_tau, drift_at_labels, vols_at_labels, timeline_years)
+sim_path = simulate_path1(curve_spot_vec, label_to_tau, drift_at_labels, vols_at_labels, timeline_years)
 
 fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
 for j, ax in enumerate(axes.ravel()):

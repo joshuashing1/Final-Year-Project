@@ -32,11 +32,11 @@ def drift_m_tau(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -
         s += integral * np.polyval(c, tau)
     return float(s)
 
-def simulate_path(
+def simulate_path4(
     f0: np.ndarray,
     tau: np.ndarray,
     drift_vals: np.ndarray,
-    vols_at_tau: np.ndarray,
+    Sigma: np.ndarray,
     tgrid: np.ndarray,
     r_mean: float,
     f_mean: np.ndarray,
@@ -49,11 +49,10 @@ def simulate_path(
     drift_vals: α(τ) vector (length N), time-homogeneous HJM drift from σ-polys.
     r_series, fQ_series must be aligned to tgrid (same length).
     """
-    f = f0.copy()
-    N, K = vols_at_tau.shape
-    path = np.empty((len(tgrid), N), float)
-    path[0] = f
     rng = np.random.default_rng(seed)
+    T, N, P = Sigma.shape
+    path = np.empty((len(tgrid), N), float)
+    path[0] = f0.copy()
     eps = 1e-12
 
     for it in range(1, len(tgrid)):
@@ -66,9 +65,8 @@ def simulate_path(
         # Real-world correction term (componentwise over τ grid)
         risk_prem = (r_mean - f_mean) / np.maximum(t_prev + tau, eps)
         
-        z = rng.normal(size=K)
-        diffusion = vols_at_tau @ (z * np.sqrt(dt))  # shape (N,)
-
+        dW = rng.normal(size=P) * np.sqrt(dt)
+        diffusion = Sigma @ dW 
         f = fprev + (drift_vals + risk_prem + dfdtau) * dt + diffusion
         path[it] = f
     return path
@@ -133,7 +131,7 @@ plt.show()
 
 curve_spot_vec = fQ_sel[0] # initial forward curve
 
-sim_path = simulate_path(
+sim_path = simulate_path4(
     f0=curve_spot_vec,
     tau=pick_tau,
     drift_vals=drift_at_labels,

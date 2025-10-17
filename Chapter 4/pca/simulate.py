@@ -32,7 +32,7 @@ def drift_m_tau(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -
         s += integral * np.polyval(c, tau)
     return float(s)
 
-def simulate_fwd_path(
+def simulate_path3(
     f0: np.ndarray,
     tau: np.ndarray,
     drift_vals: np.ndarray,
@@ -133,7 +133,7 @@ plt.show()
 
 curve_spot_vec = fQ_sel[0] # initial forward curve
 
-sim_path = simulate_fwd_path(
+sim_path = simulate_path3(
     f0=curve_spot_vec,
     tau=pick_tau,
     drift_vals=drift_at_labels,

@@ -75,7 +75,7 @@ def drift_computation(Sigma_t, taus, deg=3):
         alpha += sigma_tau * integ_tau
     return alpha
 
-def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
+def simulate_path2(F_hat, Sigma, taus, rng_seed=RNG_SEED):
     """
     Euler–Maruyama with explicit Musiela shift:
         f_{t+dt}(τ) = f_t(τ) + [ α_HJM(t,τ) + ∂f/∂τ (t,τ) ] dt + Σ(t,τ) dW_t
@@ -141,7 +141,7 @@ if __name__=="__main__":
     X_hist = align_historical_forward_curves(HIST_FWD, times, ten)
 
     # 4) Simulate with calibrated Sigma (unchanged logic)
-    sim_full, Alpha = simulate_path(F_hat, Sigma, taus)
+    sim_full, Alpha = simulate_path2(F_hat, Sigma, taus)
     
     sigma_csv_path = export_volatility(Sigma, taus, TENOR_LABELS, DT, FWD.parent/"vae_dynamic_volatility.csv")
 
