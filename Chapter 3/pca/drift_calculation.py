@@ -154,5 +154,5 @@ for j, ax in enumerate(axes.ravel()):
     ax.legend(fontsize=12)
 fig.suptitle("Forward Rates: Simulated vs Historical", fontsize=20, fontweight="bold", y=0.98)
 fig.tight_layout(rect=[0, 0, 1, 0.96])
-plt.savefig("forward_rates_simulated_curves.png", dpi=150)
+plt.savefig("fwd_rates_simulated_q.png", dpi=150)
 plt.show()
