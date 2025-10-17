@@ -65,7 +65,7 @@ def scalar_sigma(Sigma: np.ndarray) -> np.ndarray:
     return np.linalg.norm(Sigma, axis=2)
 
 def export_volatility(Sigma: np.ndarray, taus: np.ndarray, labels: list[str], dt: float,
-                     out_path: Path = "volatility_evolution.csv") -> Path:
+                     save_path: Path = "volatility_evolution.csv") -> Path:
     """
     Build a CSV with rows=time and columns=selected tenor labels.
     Time 't' is in years on a uniform grid: t = 0, dt, 2dt, ...
@@ -85,7 +85,7 @@ def export_volatility(Sigma: np.ndarray, taus: np.ndarray, labels: list[str], dt
     df = pd.DataFrame(sig_sel, columns=labels)
     df.insert(0, "t", tgrid)                   # y-axis as time (rows)
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out_path, index=False)
-    print(f"Saved σ(t,τ) CSV to {out_path}")
-    return out_path
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(save_path, index=False)
+    print(f"Saved σ(t,τ) CSV to {save_path}")
+    return save_path
