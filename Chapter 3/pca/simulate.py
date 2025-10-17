@@ -41,13 +41,13 @@ def drift_m_tau(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -
     return float(s)
 
 
-def simulate_fwd_path(f0, tau, drift_vals, vols_at_tau, tgrid, seed=123):
+def simulate_fwd_path(f0, tau, drift_vals, Sigma, tgrid, seed=123):
     """
     Euler–Maruyama with Musiela shift. vols_at_tau: [N, K] vol columns per factor.
     Drift supplied at grid 'tau' as drift_vals (length N).
     """
     f = f0.copy()
-    N, K = vols_at_tau.shape
+    N, K = Sigma.shape
     path = np.empty((len(tgrid), N), float)
     path[0] = f
     rng = np.random.default_rng(seed)
@@ -57,7 +57,7 @@ def simulate_fwd_path(f0, tau, drift_vals, vols_at_tau, tgrid, seed=123):
         fprev = f.copy()
         dfdtau = np.gradient(fprev, tau)               # Musiela shift term
         z = rng.normal(size=K)
-        diffusion = vols_at_tau @ (z * np.sqrt(dt))    # shape (N,)
+        diffusion = Sigma @ (z * np.sqrt(dt))    # shape (N,)
         f = fprev + (drift_vals + dfdtau) * dt + diffusion
         path[it] = f
     return path

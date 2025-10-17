@@ -36,7 +36,7 @@ def simulate_fwd_path(
     f0: np.ndarray,
     tau: np.ndarray,
     drift_vals: np.ndarray,
-    vols_at_tau: np.ndarray,
+    Sigma: np.ndarray,
     tgrid: np.ndarray,
     r_mean: float,
     f_mean: np.ndarray,
@@ -50,7 +50,7 @@ def simulate_fwd_path(
     r_series, fQ_series must be aligned to tgrid (same length).
     """
     f = f0.copy()
-    N, K = vols_at_tau.shape
+    N, K = Sigma.shape
     path = np.empty((len(tgrid), N), float)
     path[0] = f
     rng = np.random.default_rng(seed)
@@ -67,7 +67,7 @@ def simulate_fwd_path(
         risk_prem = (r_mean - f_mean) / np.maximum(t_prev + tau, eps)
         
         z = rng.normal(size=K)
-        diffusion = vols_at_tau @ (z * np.sqrt(dt))  # shape (N,)
+        diffusion = Sigma @ (z * np.sqrt(dt))  # shape (N,)
 
         f = fprev + (drift_vals + risk_prem + dfdtau) * dt + diffusion
         path[it] = f
@@ -130,39 +130,6 @@ ax.grid(True, alpha=0.3)
 fig.tight_layout()
 plt.savefig("short_rate.png", dpi=DPI)
 plt.show()
-
-# eps = 1e-12
-# risk_prem = (r_mean - f_mean) / np.maximum(pick_tau, eps)
-
-# risk_df = pd.DataFrame({
-#     "tenor": labels,
-#     "risk_premium": risk_prem
-# })
-# risk_df.to_csv("risk_premium_values.csv", index=False)
-
-# for lbl, val in zip(labels, risk_prem):
-#     print(f"{lbl:>6}: {val:.6f}")
-
-# fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
-# ax.scatter(pick_tau, risk_prem, marker='o', linestyle='-', color='green', s=120, zorder=3)
-
-# ax.set_xticks([])
-# ax.set_xticklabels([])
-# ax.tick_params(axis='x', which='both', bottom=False, top=False)
-
-# for x, y, lbl in zip(pick_tau, risk_prem, labels):
-#     ax.text(x, y + 0.00005, lbl, ha='center', va='bottom', fontsize=20, color='black')
-
-# ax.set_xlabel(r"Tenor $\tau$", fontsize=30)
-# ax.set_ylabel(r"Risk Premium", fontsize=26)
-# ax.set_title("Risk Premium", fontsize=35, fontweight="bold")
-
-# ax.grid(True, alpha=0.3)
-# ax.tick_params(axis="both", which="major", labelsize=24)
-# ax.tick_params(axis="both", which="minor", labelsize=20)
-# fig.tight_layout()
-# plt.savefig("risk_premium.png", dpi=DPI)
-# plt.show()
 
 curve_spot_vec = fQ_sel[0] # initial forward curve
 
