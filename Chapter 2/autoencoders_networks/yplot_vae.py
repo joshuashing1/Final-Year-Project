@@ -83,8 +83,7 @@ def process_yield_csv_vae(csv_path: str, title: str, epochs: int, batch_size: in
 
 
 def main():
-    # Example Svensson ranges (adjust to your universe)
-    sv_ranges = {
+    svn_ranges = {
         "beta1":  (2.9778, 3.3357),
         "beta2":  (-3.1356, -2.6116),
         "beta3":  (-671.6345, 919.9867),
@@ -93,19 +92,18 @@ def main():
         "lambd2": (1.4414, 2.0658),
     }
 
-    # Your rectangular dataset (header=tenors, rows=curves)
-    datasets = [{"csv_path": r"Chapter 2\data\SGS_Yield_Final.csv", "title": "SGD"}]
+    datasets = [{"csv_path": r"Chapter 2\data\SGS_Yield_Final.csv", "title": "SGD"}] # copy file path here
 
-    K = 5 # monte carlo samples for both pre-training and fitting
+    K = 5 # monte carlo samples for vae samples generation
 
     pretrain_cfg = {
         "n_samples": 20000,
-        "ranges": sv_ranges,
+        "ranges": svn_ranges,
         "epochs": 300,
         "batch_size": 256,
         "lr": 1e-3,
-        "noise_std": 0.00,        # noise added to generated curves (raw units)
-        "noise_std_train": 0.01,  # noise in standardized space during pretraining
+        "noise_std": 0.00,        
+        "noise_std_train": 0.01,  
         "seed": 0,
         "num_latent_samples": K,
     }
@@ -118,11 +116,11 @@ def main():
             batch_size=64,
             lr=1e-3,
             activation="relu",
-            noise_std=0.00,        # fine-tune noise in standardized space
+            noise_std=0.00,        
             latent_dim=2,
             num_latent_samples=K,
             save_latent=True,
-            pretrain=pretrain_cfg, # set to None to skip pretraining
+            pretrain=pretrain_cfg, 
             kld_beta=0.01,         # KLD loss multiplier
             seed=0,
         )

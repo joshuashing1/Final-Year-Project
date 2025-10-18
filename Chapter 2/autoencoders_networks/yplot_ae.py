@@ -88,8 +88,6 @@ def process_yield_csv(csv_path: str, title: str, epochs: int, batch_size: int, l
     return avg_rmse
 
 def main():
-    # === Configure synthetic Svensson parameter ranges (reasonable defaults) ===
-    # Units: same as your data (e.g., percent). Tune ranges to your universe.
     sv_ranges = {
         "beta1":  (3.3662, 4.9353),
         "beta2":  (-3.3400, -1.6373),
@@ -99,18 +97,16 @@ def main():
         "lambd2": (0.0850, 2.3469)
     }
 
-    # === Datasets you want to smooth ===
-    datasets = [{"csv_path": r"Chapter 2\data\USTreasury_Yield_Final.csv", "title": "USD"}]
+    datasets = [{"csv_path": r"Chapter 2\data\USTreasury_Yield_Final.csv", "title": "USD"}] # copy file path here
 
-    # === Pretrain configuration (set to None to disable pretraining) ===
     pretrain_cfg = {
         "n_samples": 20000,
         "ranges": sv_ranges,
         "epochs": 300,
         "batch_size": 256,
         "lr": 1e-3,
-        "noise_std": 0.00,       # noise added to the generated curves (in raw units)
-        "noise_std_train": 0.01, # noise in standardized space during pretraining
+        "noise_std": 0.00,       
+        "noise_std_train": 0.01, 
         "seed": 0,
     }
 
@@ -118,13 +114,13 @@ def main():
         process_yield_csv(
             csv_path=item["csv_path"],
             title=item["title"],
-            epochs=100,            # fine-tune epochs on REAL data
+            epochs=100,            
             batch_size=64,
             lr=1e-3,
             activation="relu",
-            noise_std=0.01,        # denoising during fine-tuning on REAL data
+            noise_std=0.01,        
             save_latent=True,
-            pretrain=pretrain_cfg  # <-- set to None to skip pretraining
+            pretrain=pretrain_cfg  
         )
 
 
