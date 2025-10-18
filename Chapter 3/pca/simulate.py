@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from pca_fn import PCAFactors
+from machine_functions.pca_fn import PCAFactors
 
 def parse_tenor(s: str) -> float:
     s = s.strip().upper()
