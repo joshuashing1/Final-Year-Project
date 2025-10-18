@@ -7,12 +7,12 @@ PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
 if PRJ_ROOT not in sys.path:
     sys.path.insert(0, PRJ_ROOT)
 
-from utils import (
+from utility_functions.utils import (
     parse_tenor,
     standardize_fit, standardize_apply, standardize_inverse,
     fwd_curves_plot
 )
-from autoencoder_variational import VariationalNN
+from machine_functions.autoencoder_variational import VariationalNN
 
 
 class PolynomialInterpolator:

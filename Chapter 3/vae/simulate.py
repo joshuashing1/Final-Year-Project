@@ -2,7 +2,7 @@ import numpy as np, pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from utils import export_volatility
+from utility_functions.utils import export_volatility
 
 BASE = Path("Chapter 3")
 VAE_DIR = BASE / "vae"
