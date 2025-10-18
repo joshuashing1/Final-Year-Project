@@ -7,7 +7,7 @@ if PRJ_ROOT not in sys.path:
     sys.path.insert(0, PRJ_ROOT)
 
 from machine_functions.autoencoder_variational import VariationalNN
-from parametric_models.svensson import SvenssonCurve
+from parametric_models.machine_functions.svensson import SvenssonCurve
 from utility_functions.utils import standardize_fit, standardize_apply
 
 def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ranges: dict, noise_std: float, seed: int

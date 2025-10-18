@@ -4,7 +4,7 @@ Install package cupy-cuda12x (-based off relevant CuDA version).
 """
 import numpy as np
 
-from svensson import SvenssonCurve
+from machine_functions.svensson import SvenssonCurve
 from calibration import _assert_same_shape
 
 def calibrate_svn_grid_CuPy(t: np.ndarray, y: np.ndarray, lambd1_lo: float, lambd1_upp: float, lambd2_lo: float, lambd2_upp: float,
