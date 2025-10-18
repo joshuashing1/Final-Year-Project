@@ -8,9 +8,9 @@ PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
 if PRJ_ROOT not in sys.path:
     sys.path.insert(0, PRJ_ROOT)
 
-from utils import parse_tenor, standardize_fit, standardize_apply, standardize_inverse, yield_curves_plot
-from autoencoder import AutoencoderNN
-from synthetic_svn_training import pretrain_on_synthetic
+from utility_functions.utils import parse_tenor, standardize_fit, standardize_apply, standardize_inverse, yield_curves_plot
+from machine_functions.autoencoder import AutoencoderNN
+from synthetic_svn_training_ae import pretrain_on_synthetic
 from parametric_models.yplot_historical import LinearInterpolant
 
 
