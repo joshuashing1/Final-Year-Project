@@ -1,6 +1,6 @@
 import numpy as np
 
-from nn_fn import Dense
+from machine_functions.nn_fn import Dense
 
 class AutoencoderNN:
     """
