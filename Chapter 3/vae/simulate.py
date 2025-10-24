@@ -143,8 +143,8 @@ if __name__=="__main__":
     # 4) Simulate with calibrated Sigma (unchanged logic)
     sim_full, Alpha = simulate_path2(F_hat, Sigma, taus)
     
-    sigma_csv_path = export_volatility(Sigma, taus, TENOR_LABELS, DT, FWD.parent/"vae_dynamic_volatility.csv")
-    simulated_csv_path = export_simul_fwd(sim_full, taus, TENOR_LABELS, DT, VAE_DIR / "vae_simulated_fwd_rates.csv")
+    sigma_csv = export_volatility(Sigma, taus, TENOR_LABELS, DT, FWD.parent/"vae_dynamic_volatility.csv")
+    simulated_fwd_csv = export_simul_fwd(sim_full, taus, TENOR_LABELS, DT, VAE_DIR / "vae_simulated_fwd_rates.csv")
     
     # 5) Select the 9 labeled tenors and plot hist vs sim (hist now from HIST_FWD)
     selected_tenors = np.array([parse_tenor(x) for x in TENOR_LABELS])
