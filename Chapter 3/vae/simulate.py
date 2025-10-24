@@ -2,7 +2,7 @@ import numpy as np, pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from utility_functions.utils import export_volatility
+from utility_functions.utils import export_volatility, export_simul_fwd
 
 BASE = Path("Chapter 3")
 VAE_DIR = BASE / "vae"
@@ -144,13 +144,14 @@ if __name__=="__main__":
     sim_full, Alpha = simulate_path2(F_hat, Sigma, taus)
     
     sigma_csv_path = export_volatility(Sigma, taus, TENOR_LABELS, DT, FWD.parent/"vae_dynamic_volatility.csv")
-
+    simulated_csv_path = export_simul_fwd(sim_full, taus, TENOR_LABELS, DT, VAE_DIR / "vae_simulated_fwd_rates.csv")
+    
     # 5) Select the 9 labeled tenors and plot hist vs sim (hist now from HIST_FWD)
-    want = np.array([parse_tenor(x) for x in TENOR_LABELS])
-    # map desired maturities into the taus grid
-    idx = [int(np.where(np.isclose(taus, t))[0][0]) for t in want]
-    hist_9 = X_hist[:, idx]   # <- historical from raw CSV (scaled to decimals)
-    sim_9  = sim_full[:, idx]
+    selected_tenors = np.array([parse_tenor(x) for x in TENOR_LABELS])
+    
+    idx = [int(np.where(np.isclose(taus, t))[0][0]) for t in selected_tenors]
+    hist_simul = X_hist[:, idx]   
+    sim_simul  = sim_full[:, idx]
 
     tgrid = np.arange(Sigma.shape[0]) * DT
-    simulation_plots(tgrid, hist_9, sim_9, TENOR_LABELS)
+    simulation_plots(tgrid, hist_simul, sim_simul, TENOR_LABELS)
