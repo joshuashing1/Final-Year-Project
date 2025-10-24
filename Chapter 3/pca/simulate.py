@@ -1,14 +1,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from machine_functions.pca_fn import PCAFactors
-
-def parse_tenor(s: str) -> float:
-    s = s.strip().upper()
-    if s.endswith("M"): return float(s[:-1]) / 12.0
-    if s.endswith("Y"): return float(s[:-1])
-    return float(s)
+from utility_functions.utils import parse_tenor, export_simul_fwd
 
 def vols_from_pca(princ_eigval: np.ndarray, princ_comp: np.ndarray) -> np.ndarray:
     """Discretized volatility functions: vols[:, i] = sqrt(lambda_i) * PC_i(T)."""
@@ -141,6 +137,7 @@ vols_at_labels  = eval_polys(coeff_list, label_to_tau)          # shape [N, K]
 
 timeline_years = np.arange(len(T)) / 252.0
 sim_path = simulate_path1(curve_spot_vec, label_to_tau, drift_at_labels, vols_at_labels, timeline_years)
+export_simul_fwd(sim_path, label_to_tau, labels, dt = 1/252.0, save_path = "pca_simulated_fwd_rates.csv")
 
 fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
 for j, ax in enumerate(axes.ravel()):

@@ -1,19 +1,11 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  
+
+from utility_functions.utils import parse_tenor  
 
 def _assert_same_shape(t: np.ndarray, y: np.ndarray) -> None:
     assert t.shape == y.shape, "Mismatching shapes of time and values"
-
-def parse_tenor(s: str) -> float:
-    """Return tenor in years from labels like '1M','6M','1.0Y','10.0Y'."""
-    s = s.strip().upper()
-    if s.endswith("M"):
-        return float(s[:-1]) / 12.0
-    if s.endswith("Y"):
-        return float(s[:-1])
-    return float(s)
 
 class LinearInterpolant:
     """Piecewise-linear interpolant over (t, y) with flat extrapolation."""
