@@ -11,21 +11,21 @@ def parse_tenor(s: str) -> float:
     return float(s)
 
 
-def standardize_fit(X: np.ndarray):
+def standardize_params(X: np.ndarray):
     mu = X.mean(axis=0, keepdims=True)
     sd = X.std(axis=0, keepdims=True)
     sd[sd < 1e-8] = 1.0
     return mu, sd
 
 
-def standardize_apply(X: np.ndarray, mu: np.ndarray, sd: np.ndarray):
+def standardize(X: np.ndarray, mu: np.ndarray, sd: np.ndarray):
     return (X - mu) / sd
 
 
 def standardize_inverse(Z: np.ndarray, mu: np.ndarray, sd: np.ndarray):
     return Z * sd + mu
 
-def fwd_curves_plot(maturities_years, fitted_curves, title, save_path):
+def hist_fwd_curves_plot(maturities_years, fitted_curves, title, save_path):
     """Yield curve plot in accordance to tenor structure.
     """
     x_min = float(np.nanmin(maturities_years))

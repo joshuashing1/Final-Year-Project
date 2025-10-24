@@ -7,13 +7,8 @@ PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
 if PRJ_ROOT not in sys.path:
     sys.path.insert(0, PRJ_ROOT)
 
-from utility_functions.utils import (
-    parse_tenor,
-    standardize_fit, standardize_apply, standardize_inverse,
-    fwd_curves_plot
-)
+from utility_functions.utils import parse_tenor, standardize_params, standardize, standardize_inverse, hist_fwd_curves_plot
 from machine_functions.autoencoder_variational import VariationalNN
-
 
 class PolynomialInterpolator:
     """Tiny wrapper around np.polyfit/np.polyval (coeffs in descending powers)."""
@@ -27,7 +22,6 @@ class PolynomialInterpolator:
 
     def __call__(self, x):
         return np.polyval(self.coeffs, np.asarray(x, float))
-
 
 def _extract_tenor_matrix(df: pd.DataFrame):
     """Return (X, tenor_labels, maturities_years, T). Drops a 'time' column if present."""
@@ -77,8 +71,8 @@ def process_fwd_csv_vae(
                         latent_dim=latent_dim, rng=rng)
 
     # 3) Standardize (+ optional denoising noise)
-    mu_real, sd_real = standardize_fit(X)
-    Xz_real = standardize_apply(X, mu_real, sd_real)
+    mu_real, sd_real = standardize_params(X)
+    Xz_real = standardize(X, mu_real, sd_real)
     X_train = (Xz_real + rng.normal(0.0, noise_std, size=Xz_real.shape).astype(np.float32)
                if noise_std > 0 else Xz_real)
 
@@ -107,7 +101,7 @@ def process_fwd_csv_vae(
     fitted_curves = [PolynomialInterpolator.fit(maturities_years, row, degree=3)
                      for row in X_smooth]
     fig_path = f"vae_reconstructed_fwd_curves.png"
-    fwd_curves_plot(maturities_years, fitted_curves, title=title, save_path=fig_path)
+    hist_fwd_curves_plot(maturities_years, fitted_curves, title=title, save_path=fig_path)
 
     return avg_rmse
 
