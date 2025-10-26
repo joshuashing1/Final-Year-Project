@@ -3,14 +3,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import jarque_bera
 
-# ---------------------- Paths / Config ----------------------
 ROOT = r"Chapter 3\statistical_evaluation\simulated_fwd_rates"
-HIST_PATH = os.path.normpath(os.path.join(ROOT, "GLC_fwd_curve_raw.csv"))
+HIST_PATH = os.path.normpath(os.path.join(ROOT, "GLC_fwd_curve_selected.csv"))
 PCA_PATH  = os.path.normpath(os.path.join(ROOT, "pca_simulated_fwd_rates.csv"))
 VAE_PATH  = os.path.normpath(os.path.join(ROOT, "vae_simulated_fwd_rates.csv"))
 TIME_COL = "t"
 
-# --------------------------- Load ---------------------------
 hist = pd.read_csv(HIST_PATH).sort_values(TIME_COL).reset_index(drop=True)
 pca  = pd.read_csv(PCA_PATH ).sort_values(TIME_COL).reset_index(drop=True)
 vae  = pd.read_csv(VAE_PATH ).sort_values(TIME_COL).reset_index(drop=True)
@@ -38,7 +36,6 @@ hist_lvl = hist[tenors].iloc[1:].reset_index(drop=True)
 pca_lvl  =  pca[tenors].iloc[1:].reset_index(drop=True)
 vae_lvl  =  vae[tenors].iloc[1:].reset_index(drop=True)
 
-# ----------------------- Jarque–Bera -------------------------
 def jb_table(inc_df: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for c in tenors:
@@ -49,8 +46,7 @@ def jb_table(inc_df: pd.DataFrame) -> pd.DataFrame:
 jb_pca = jb_table(pca_inc)
 jb_vae = jb_table(vae_inc)
 
-# -------------------------- RMSE -----------------------------
-rmse_pca_per_tenor = np.sqrt(((hist_lvl - pca_lvl)**2).mean(axis=0))
+rmse_pca_per_tenor = np.sqrt(((hist_lvl - pca_lvl)**2).mean(axis=0)) # rmse
 rmse_vae_per_tenor = np.sqrt(((hist_lvl - vae_lvl)**2).mean(axis=0))
 
 rmse_tbl = pd.DataFrame({
@@ -62,7 +58,6 @@ rmse_tbl = pd.DataFrame({
 overall_pca = float(rmse_pca_per_tenor.mean())
 overall_vae = float(rmse_vae_per_tenor.mean())
 
-# -------------------------- Output ---------------------------
 print("\n=== Jarque–Bera on one-step increments (PCA model) ===")
 print(jb_pca.to_string(index=False))
 
