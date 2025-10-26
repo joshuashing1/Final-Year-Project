@@ -1,19 +1,17 @@
-# pip install numpy pandas scipy scikit-learn
 import os
 import numpy as np
 import pandas as pd
 from scipy.stats import jarque_bera
 from sklearn.metrics import mean_squared_error
 
-# ========================= Config (EDIT ROOT) =========================
-# Use a raw string and os.path.join to avoid backslash-escape issues on Windows.
+
 ROOT = r"Chapter 3\statistical_evaluation\simulated_fwd_rates"
 HIST_PATH = os.path.normpath(os.path.join(ROOT, "GLC_fwd_curve_raw.csv"))
 PCA_PATH  = os.path.normpath(os.path.join(ROOT, "pca_simulated_fwd_rates.csv"))
 VAE_PATH  = os.path.normpath(os.path.join(ROOT, "vae_simulated_fwd_rates.csv"))
 TIME_COL = "t"
 
-# ============================== Helpers ================================
+
 def tenor_to_years(label: str) -> float:
     s = label.strip().upper()
     if s.endswith("M"):  return float(s[:-1]) / 12.0
