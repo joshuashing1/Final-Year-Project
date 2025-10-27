@@ -5,34 +5,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import jarque_bera
 
-# ---------- Paths (using pathlib) ----------
 ROOT = Path("Chapter 3") / "statistical_evaluation"
 FWD_DIR  = ROOT / "simulated_fwd_rates_csv"
-SR_DIR   = ROOT / "short_rates_csv"
-
 HIST_PATH  = FWD_DIR / "GLC_fwd_curve_selected.csv"
 PCA_PATH   = FWD_DIR / "pca_simulated_fwd_rates.csv"
 VAE_PATH   = FWD_DIR / "vae_simulated_fwd_rates.csv"
-PCA_R_PATH = SR_DIR  / "pca_short_rate.csv"
-VAE_R_PATH = SR_DIR  / "vae_short_rate.csv"
 
 TIME_COL = "t"
-DT_YEARS = 1.0 / 252.0  # adjust if your time step is not daily-like
+DT_YEARS = 1.0 / 252.0  
 
-# ---------- Load (no merging) ----------
 hist = pd.read_csv(HIST_PATH).sort_values(TIME_COL).reset_index(drop=True)
 pca  = pd.read_csv(PCA_PATH ).sort_values(TIME_COL).reset_index(drop=True)
 vae  = pd.read_csv(VAE_PATH ).sort_values(TIME_COL).reset_index(drop=True)
-pca_r = pd.read_csv(PCA_R_PATH).sort_values(TIME_COL).reset_index(drop=True)
-vae_r = pd.read_csv(VAE_R_PATH).sort_values(TIME_COL).reset_index(drop=True)
 
-# Optional sanity checks (no aligning/merging done)
 assert np.array_equal(hist[TIME_COL].to_numpy(), pca[TIME_COL].to_numpy())
 assert np.array_equal(hist[TIME_COL].to_numpy(), vae[TIME_COL].to_numpy())
-assert np.array_equal(hist[TIME_COL].to_numpy(), pca_r[TIME_COL].to_numpy())
-assert np.array_equal(hist[TIME_COL].to_numpy(), vae_r[TIME_COL].to_numpy())
 
-# ---------- Columns / basic transforms ----------
 tenors = [c for c in hist.columns if c != TIME_COL]
 assert tenors == list(pca.columns[1:]) == list(vae.columns[1:]), "Tenor columns mismatch."
 
@@ -77,78 +65,105 @@ print("\nOverall Predictive RMSE:")
 print(f"  PCA: {overall_pca:.6f}")
 print(f"  VAE: {overall_vae:.6f}")
 
-# ---------- Martingale defect ----------
-def _tenor_to_years(c: str) -> float:
-    s = c.strip().upper()
-    if s.endswith("M"): return float(s[:-1]) / 12.0
-    if s.endswith("Y"): return float(s[:-1])
-    return float(s)
+# # modified duration (annual compounding)
+# def _tenor_to_years(c: str) -> float:
+#     s = c.strip().upper()
+#     if s.endswith("M"): return float(s[:-1]) / 12.0
+#     if s.endswith("Y"): return float(s[:-1])
+#     return float(s)
 
-# tenor grid (years) and trapezoid widths Δτ_k
-tenor_years = np.array([_tenor_to_years(c) for c in tenors], dtype=float)
-dτ = np.diff(tenor_years)  # length J-1
+# tenor_years = np.array([_tenor_to_years(c) for c in tenors], dtype=float)
+# dτ = np.diff(tenor_years)
 
-# Discount factor D(0,t) from short-rate paths
-A_pca = np.cumsum(pca_r["r_t"].to_numpy()) * DT_YEARS
-A_vae = np.cumsum(vae_r["r_t"].to_numpy()) * DT_YEARS
-D0t_pca = np.exp(-A_pca)[:, None]  # (N_time, 1)
-D0t_vae = np.exp(-A_vae)[:, None]
+# def _cum_int_over_tenor(F_row: np.ndarray) -> np.ndarray:
+#     """Cumulative ∫_0^{τ_j} f(t, t+u) du via trapezoid over tenor grid."""
+#     avg = 0.5 * (F_row[:-1] + F_row[1:])  # (J-1,)
+#     return np.concatenate([[0.0], np.cumsum(avg * dτ)])  # (J,)
 
-# Trapezoid integral over *tenor* at fixed t:
-# I_t(τ_j) = ∫_0^{τ_j} f(t, t+u) du, using the grid values f(t, τ_k)
-def tenor_integrals_trapz(F_row: np.ndarray) -> np.ndarray:
-    avg = 0.5 * (F_row[:-1] + F_row[1:])   # length J-1
-    cum = np.concatenate([[0.0], np.cumsum(avg * dτ)])
-    return cum  # length J
+# def _prices_from_forwards(F: np.ndarray) -> np.ndarray:
+#     """Return P(t, T_j) for all t,j from forward surface F[t, j]=f(t, τ_j)."""
+#     N, J = F.shape
+#     P = np.empty_like(F)
+#     for i in range(N):
+#         I = _cum_int_over_tenor(F[i])     # ∫_0^{τ_j} f(t, t+u) du
+#         P[i] = np.exp(-I)
+#     return P
 
-# P(0,T) from the initial *historical* curve (first row of hist)
-f0 = hist[tenors].iloc[0].to_numpy(dtype=float)   # shape (J,)
-I0 = tenor_integrals_trapz(f0)                    # (J,)
-P0T = np.exp(-I0)[None, :]                        # (1, J)
+# # Forward matrices
+# F_pca = pca[tenors].to_numpy(float)  # (N,J)
+# F_vae = vae[tenors].to_numpy(float)  # (N,J)
 
-# P(t,T) from simulated forward surfaces
-F_pca = pca[tenors].to_numpy(dtype=float)         # (N, J)
-F_vae = vae[tenors].to_numpy(dtype=float)         # (N, J)
+# # Prices from forward surfaces
+# P_pca = _prices_from_forwards(F_pca)
+# P_vae = _prices_from_forwards(F_vae)
 
-def all_PtT(F: np.ndarray) -> np.ndarray:
-    N, J = F.shape
-    out = np.empty_like(F)
-    for i in range(N):
-        Ii = tenor_integrals_trapz(F[i])
-        out[i] = np.exp(-Ii)
-    return out
+# # Annual-compounded yields from price: P = (1+y)^(-τ)  => y = P^(-1/τ) - 1
+# _tau = np.maximum(tenor_years, 1e-12)   # avoid divide-by-zero
+# Y_pca = np.power(P_pca, -1.0 / _tau) - 1.0
+# Y_vae = np.power(P_vae, -1.0 / _tau) - 1.0
 
-PtT_pca = all_PtT(F_pca)                          # (N, J)
-PtT_vae = all_PtT(F_vae)                          # (N, J)
+# # Modified Duration (annual comp): D_mod = τ / (1 + y)
+# Dmod_pca = tenor_years[None, :] / (1.0 + Y_pca)
+# Dmod_vae = tenor_years[None, :] / (1.0 + Y_vae)
 
-# Martingale processes and defects
-M_pca = D0t_pca * (PtT_pca / P0T)                  # (N, J)
-M_vae = D0t_vae * (PtT_vae / P0T)                  # (N, J)
+# labels9 = ["1M","6M","1.0Y","2.0Y","3.0Y","5.0Y","10.0Y","20.0Y","25.0Y"]
+# idx9 = [tenors.index(lbl) for lbl in labels9]
 
-MD_pca = 1.0 - M_pca                               # (N, J), tenor-dependent
-MD_vae = 1.0 - M_vae
+# t_vals = hist[TIME_COL].to_numpy()
+# timeline_years = (t_vals - t_vals[0]) * DT_YEARS
 
-# Time axis (years)
-t_vals = hist[TIME_COL].to_numpy()
-timeline_years = (t_vals - t_vals[0]) * DT_YEARS
+# def plot_dmod_side_by_side(D_pca, D_vae, out_png, dpi, w_px, h_px):
+#     fig_w_in = (2 * w_px) / dpi
+#     fig_h_in = h_px / dpi
 
-labels9 = ["1M","6M","1.0Y","2.0Y","3.0Y","5.0Y","10.0Y","20.0Y","25.0Y"]
-j_sel = [tenors.index(lbl) for lbl in labels9]
+#     fig, axes = plt.subplots(1, 2, figsize=(fig_w_in, fig_h_in), dpi=dpi, sharey=True)
 
-def plot_md_grid_tenor(md_matrix, model_name, out_png):
-    fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True, sharey=True)
-    for j, ax in enumerate(axes.ravel()):
-        ax.plot(timeline_years, md_matrix[:, j_sel[j]], lw=1.3, label=f"{model_name} defect")
-        ax.axhline(0.0, ls="--", lw=0.8)  # ideal martingale baseline
-        ax.set_title(labels9[j], fontsize=13, fontweight="bold")
-        ax.set_xlabel("Time t (years)", fontsize=11)
-        ax.set_ylabel("Martingale defect", fontsize=11)
-        ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=10)
-    fig.suptitle(f"Martingale Defect vs Tenor — {model_name}", fontsize=16, fontweight="bold", y=0.98)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.savefig(out_png, dpi=150)
-    plt.show()
+#     # 9 distinct, consistent colors across both panels
+#     cmap = plt.get_cmap("tab10")
+#     tenor_colors = {lbl: cmap(i % 10) for i, lbl in enumerate(labels9)}
 
-plot_md_grid_tenor(MD_pca, "PCA-HJM", "martingale_defect_pca.png")
-plot_md_grid_tenor(MD_vae, "VAE-HJM", "martingale_defect_vae.png")
+#     # Helper to draw one panel
+#     def _draw(ax, D, title):
+#         for lbl in labels9:
+#             j = tenors.index(lbl)
+#             ax.plot(
+#                 timeline_years,
+#                 D[:, j],
+#                 lw=2.0,
+#                 label=lbl,
+#                 color=tenor_colors[lbl],
+#             )
+#         ax.set_title(title, fontsize=37, fontweight="bold", pad=12)
+#         ax.set_xlabel("Time t (years)", fontsize=32)
+#         ax.set_ylabel("Modified duration (years)", fontsize=32)
+#         ax.grid(True, alpha=0.3)
+#         ax.tick_params(axis="both", which="major", labelsize=27)
+#         ax.tick_params(axis="both", which="minor", labelsize=27)
+
+#     # Draw both panels
+#     _draw(axes[0], D_pca, "Modified Duration — PCA")
+#     _draw(axes[1], D_vae, "Modified Duration — VAE")
+
+#     # Single shared legend below both panels
+#     handles, labels = axes[0].get_legend_handles_labels()
+#     fig.legend(
+#         handles,
+#         labels,
+#         loc="lower center",
+#         bbox_to_anchor=(0.5, -0.12),  # lower and centered
+#         ncol=5,
+#         fontsize=20,
+#         title="Tenor",
+#         title_fontsize=22,
+#         frameon=False,
+#     )
+
+#     # Adjust layout to reserve space for the legend
+#     fig.tight_layout(rect=[0, 0.12, 1, 1])
+#     plt.subplots_adjust(bottom=0.22)  # ensures legend area is fully visible
+
+#     plt.savefig(out_png, dpi=dpi, bbox_inches="tight")
+#     plt.show()
+
+
+# plot_dmod_side_by_side(Dmod_pca, Dmod_vae, "modified_duration.png", dpi=100, w_px=1300, h_px=750)
