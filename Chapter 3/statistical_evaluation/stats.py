@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import jarque_bera
 
 ROOT = Path("Chapter 3") / "statistical_evaluation"
-FWD_DIR  = ROOT / "simulated_fwd_rates_csv"
+FWD_DIR  = ROOT / "simulated_rates_input_csv"
 HIST_PATH  = FWD_DIR / "GLC_fwd_curve_selected.csv"
 PCA_PATH   = FWD_DIR / "pca_simulated_fwd_rates.csv"
 VAE_PATH   = FWD_DIR / "vae_simulated_fwd_rates.csv"
