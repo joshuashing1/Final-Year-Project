@@ -4,7 +4,7 @@ def parse_tenor(s: str) -> float:
     s = str(s).strip().upper()
     return float(s[:-1]) / 12 if s.endswith("M") else float(s[:-1]) if s.endswith("Y") else float(s)
 
-def build_discount_function(Tgrid: np.ndarray, fgrid: np.ndarray):
+def bond_price(Tgrid: np.ndarray, fgrid: np.ndarray):
     Tgrid = np.asarray(Tgrid, float)
     fgrid = np.asarray(fgrid, float)
     o = np.argsort(Tgrid); Tgrid, fgrid = Tgrid[o], fgrid[o]
@@ -47,7 +47,7 @@ def compute_swap_rate_matrices(csv_path: str) -> list:
 
     for _, r in df.iterrows():
         fgrid = r[ten_cols].to_numpy(float)
-        P = build_discount_function(Tgrid, fgrid)
+        P = bond_price(Tgrid, fgrid)
 
         M = np.empty((Exp.size, Ten.size), float)
         for i, Ti in enumerate(Exp):
@@ -75,7 +75,6 @@ if __name__ == "__main__":
     path = r"Chapter 5\swap_rate_computation\data\pca_simulated_rates_selected.csv"
     mats = compute_swap_rate_matrices(path)
     print(f"Got {len(mats)} matrices. Example shape: {mats[0].shape if mats else None}")
-    # mats[k] is a 19x7 np.ndarray for timestamp k
     print(f"Total matrices: {len(mats)}")
     for i, M in enumerate(mats):
         print(f"\n=== Swap Rate Matrix for timestamp {i+1} ===")
