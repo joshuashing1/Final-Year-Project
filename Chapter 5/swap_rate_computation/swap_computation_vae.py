@@ -13,35 +13,30 @@ def bond_price(Tgrid: np.ndarray, fgrid: np.ndarray):
         T = np.atleast_1d(T).astype(float)
 
         def one(z):
-            if z <= 0:
-                return 1.0
             knots = np.r_[0.0, Tgrid[Tgrid < z], z]
             vals  = np.interp(np.clip(knots, Tgrid[0], Tgrid[-1]), Tgrid, fgrid)
             return np.exp(-np.trapz(vals, knots))
 
         out = np.fromiter((one(z) for z in T), float)
-        # 👇 return a Python float if caller passed a scalar
         return out[0] if out.size == 1 else out
 
     return P
 
-def compute_swap_rate_matrices(csv_path: str) -> list:
+def swap_rate_computation(csv_path: str) -> list:
     """
     Returns: list of np.ndarray, each with shape (19, 7).
              One matrix per timestamp (row) in the CSV.
     """
     df = pd.read_csv(csv_path)
 
-    # Tenor axis from headers (everything except 't')
     ten_cols = [c for c in df.columns if c.lower() != "t"]
     Tgrid = np.array([parse_tenor(c) for c in ten_cols], float)
     order = np.argsort(Tgrid)
     Tgrid, ten_cols = Tgrid[order], [ten_cols[i] for i in order]
 
-    # Expiry (19) and swap-tenor (7) grids (years)
-    Exp = np.array([1/12, 3/12, 6/12, 9/12, 1, 2, 3, 4, 5, 6,
+    Expiry = np.array([1/12, 3/12, 6/12, 9/12, 1, 2, 3, 4, 5, 6,
                     7, 8, 9, 10, 12, 15, 20, 25, 30], float)
-    Ten = np.array([1, 2, 3, 5, 10, 20, 25], float)
+    Tenor = np.array([1, 2, 3, 5, 10, 20, 25], float)
 
     matrices = []
 
@@ -49,12 +44,11 @@ def compute_swap_rate_matrices(csv_path: str) -> list:
         fgrid = r[ten_cols].to_numpy(float)
         P = bond_price(Tgrid, fgrid)
 
-        M = np.empty((Exp.size, Ten.size), float)
-        for i, Ti in enumerate(Exp):
-            for j, m in enumerate(Ten):
+        M = np.empty((Expiry.size, Tenor.size), float)
+        for i, Ti in enumerate(Expiry):
+            for j, m in enumerate(Tenor):
                 Tj = Ti + m
-                # Semiannual schedule (dt=0.5) with first stub if needed
-                dt = 0.5
+                dt = 0.5 # index tenor
                 first = np.ceil(Ti / dt) * dt
                 if first > Tj:
                     pay_times = np.array([Tj])
@@ -72,8 +66,8 @@ def compute_swap_rate_matrices(csv_path: str) -> list:
     return matrices
 
 if __name__ == "__main__":
-    path = r"Chapter 5\swap_rate_computation\data\pca_simulated_rates_selected.csv"
-    mats = compute_swap_rate_matrices(path)
+    path = r"Chapter 5\swap_rate_computation\data\vae_simulated_rates_selected.csv"
+    mats = swap_rate_computation(path)
     print(f"Got {len(mats)} matrices. Example shape: {mats[0].shape if mats else None}")
     print(f"Total matrices: {len(mats)}")
     for i, M in enumerate(mats):
