@@ -4,17 +4,17 @@ def parse_tenor(s: str) -> float:
     s = str(s).strip().upper()
     return float(s[:-1]) / 12 if s.endswith("M") else float(s[:-1]) if s.endswith("Y") else float(s)
 
-def bond_price(Tgrid: np.ndarray, fgrid: np.ndarray):
+def bond_price(Tgrid: np.ndarray, fwd_grid: np.ndarray):
     Tgrid = np.asarray(Tgrid, float)
-    fgrid = np.asarray(fgrid, float)
-    o = np.argsort(Tgrid); Tgrid, fgrid = Tgrid[o], fgrid[o]
+    fwd_grid = np.asarray(fwd_grid, float)
+    o = np.argsort(Tgrid); Tgrid, fwd_grid = Tgrid[o], fwd_grid[o]
 
     def P(T):
         T = np.atleast_1d(T).astype(float)
 
         def one(z):
             knots = np.r_[0.0, Tgrid[Tgrid < z], z]
-            vals  = np.interp(np.clip(knots, Tgrid[0], Tgrid[-1]), Tgrid, fgrid)
+            vals  = np.interp(np.clip(knots, Tgrid[0], Tgrid[-1]), Tgrid, fwd_grid)
             return np.exp(-np.trapz(vals, knots))
 
         out = np.fromiter((one(z) for z in T), float)
@@ -29,10 +29,10 @@ def swap_rate_computation(csv_path: str) -> list:
     """
     df = pd.read_csv(csv_path)
 
-    ten_cols = [c for c in df.columns if c.lower() != "t"]
-    Tgrid = np.array([parse_tenor(c) for c in ten_cols], float)
+    tenor_cols = [c for c in df.columns if c.lower() != "t"]
+    Tgrid = np.array([parse_tenor(c) for c in tenor_cols], float)
     order = np.argsort(Tgrid)
-    Tgrid, ten_cols = Tgrid[order], [ten_cols[i] for i in order]
+    Tgrid, tenor_cols = Tgrid[order], [tenor_cols[i] for i in order]
 
     Expiry = np.array([1/12, 3/12, 6/12, 9/12, 1, 2, 3, 4, 5, 6,
                     7, 8, 9, 10, 12, 15, 20, 25, 30], float)
@@ -41,7 +41,7 @@ def swap_rate_computation(csv_path: str) -> list:
     matrices = []
 
     for _, r in df.iterrows():
-        fgrid = r[ten_cols].to_numpy(float)
+        fgrid = r[tenor_cols].to_numpy(float)
         P = bond_price(Tgrid, fgrid)
 
         M = np.empty((Expiry.size, Tenor.size), float)
