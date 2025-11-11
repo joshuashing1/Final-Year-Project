@@ -22,10 +22,14 @@ def bond_price(Tgrid: np.ndarray, fwd_grid: np.ndarray):
 
     return P
 
-def swap_rate_computation(csv_path: str) -> list:
+def swap_rate_computation(csv_path: str):
     """
-    Returns: list of np.ndarray, each with shape (19, 7).
-             One matrix per timestamp (row) in the CSV.
+    Returns
+    -------
+    swap_mats : list of np.ndarray
+        Each with shape (19, 7). One swap-rate matrix per timestamp in the CSV.
+    annuity_mats : list of np.ndarray
+        Each with shape (19, 7). Matching Annuity matrix per timestamp.
     """
     df = pd.read_csv(csv_path)
 
@@ -34,42 +38,66 @@ def swap_rate_computation(csv_path: str) -> list:
     order = np.argsort(Tgrid)
     Tgrid, tenor_cols = Tgrid[order], [tenor_cols[i] for i in order]
 
-    Expiry = np.array([1/12, 3/12, 6/12, 9/12, 1, 2, 3, 4, 5, 6,
-                    7, 8, 9, 10, 12, 15, 20, 25, 30], float)
+    # 19 expiries
+    Expiry = np.array([
+        1/12, 3/12, 6/12, 9/12,
+        1, 2, 3, 4, 5, 6,
+        7, 8, 9, 10, 12, 15, 20, 25, 30
+    ], float)
+
+    # 7 tenors
     Tenor = np.array([1, 2, 3, 5, 10, 20, 25], float)
 
-    matrices = []
+    swap_mats = []
+    annuity_mats = []
 
     for _, r in df.iterrows():
         fgrid = r[tenor_cols].to_numpy(float)
         P = bond_price(Tgrid, fgrid)
 
-        M = np.empty((Expiry.size, Tenor.size), float)
+        M = np.empty((Expiry.size, Tenor.size), float)  
+        A = np.empty((Expiry.size, Tenor.size), float)  
+
         for i, Ti in enumerate(Expiry):
             for j, m in enumerate(Tenor):
                 Tj = Ti + m
-                dt = 0.5 # index tenor
+                dt = 0.5  # index tenor
                 first = np.ceil(Ti / dt) * dt
+
                 if first > Tj:
                     pay_times = np.array([Tj])
                 else:
                     pay_times = np.arange(first, Tj + 1e-12, dt)
                     if abs(pay_times[-1] - Tj) > 1e-12:
                         pay_times = np.r_[pay_times, Tj]
+
                 accr = np.diff(np.r_[Ti, pay_times])
 
-                A = float(np.sum(accr * P(pay_times)))
-                M[i, j] = np.nan if A <= 0 else (float(P(Ti)) - float(P(Tj))) / A
+                Annuity = float(np.sum(accr * P(pay_times)))
 
-        matrices.append(M)
+                if Annuity <= 0:
+                    M[i, j] = np.nan
+                    A[i, j] = np.nan
+                else:
+                    A[i, j] = Annuity
+                    M[i, j] = (float(P(Ti)) - float(P(Tj))) / Annuity
 
-    return matrices
+        swap_mats.append(M)
+        annuity_mats.append(A)
+
+    return swap_mats, annuity_mats
 
 if __name__ == "__main__":
     path = r"Chapter 5\swap_rate_computation\data\pca_simulated_rates_selected.csv"
-    mats = swap_rate_computation(path)
-    print(f"Got {len(mats)} matrices. Example shape: {mats[0].shape if mats else None}")
-    print(f"Total matrices: {len(mats)}")
-    for i, M in enumerate(mats):
-        print(f"\n=== Swap Rate Matrix for timestamp {i+1} ===")
-        print(M)
+
+    # Ignore swap_mats, only keep annuity_mats
+    _, annuity_mats = swap_rate_computation(path)
+
+    print(f"Got {len(annuity_mats)} annuity matrices.")
+    print(f"Example shape: {annuity_mats[0].shape if annuity_mats else None}")
+
+    for i, A in enumerate(annuity_mats, start=1):
+        print(f"\n=== Timestamp {i} ===")
+        print("Annuity Matrix:")
+        print(A)
+
