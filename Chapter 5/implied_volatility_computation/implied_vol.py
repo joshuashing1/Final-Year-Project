@@ -19,7 +19,7 @@ def implied_vol(F0, K, T, annuity, market_price, flag="c", tol=1e-5, max_iter=10
         sigma -= diff / v_sigma
     return sigma if sigma >= 0 else np.nan
 
-T = 3.0 / 12.0 # option expiry
+T = 240.0 / 12.0 # option expiry
 
 pca_path   = r"Chapter 5\implied_volatility_computation\data\vae_20Y25Y_implied_volatility.csv"
 libor_path = r"Chapter 5\bloomberg_data\LIBOR_swaption_20Y25Y.csv"
