@@ -19,7 +19,7 @@ def implied_vol(F0, K, T, annuity, market_price, flag="c", tol=1e-5, max_iter=10
         sigma -= diff / v_sigma
     return sigma if sigma >= 0 else np.nan
 
-T = 240.0 / 12.0 # option expiry
+T = 240.0 / 12.0 # option expiry (change accordingly)
 
 pca_path   = r"Chapter 5\implied_volatility_computation\data\vae_20Y25Y_implied_volatility.csv"
 libor_path = r"Chapter 5\bloomberg_data\LIBOR_swaption_20Y25Y.csv"
@@ -48,6 +48,7 @@ df = df.sort_values("t")
 DPI = 100
 W_IN, H_IN = 1573 / DPI, 750 / DPI
 
+# change labels and path naming accordingly
 TICK_FS = 27
 fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
 ax.plot(df["t"], df["implied_vol"], marker="o", label="VAE implied vol")
