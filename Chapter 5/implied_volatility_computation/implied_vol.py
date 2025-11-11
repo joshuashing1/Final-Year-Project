@@ -3,11 +3,10 @@ from py_vollib.black import black as black76
 from py_vollib.black.greeks.analytical import vega as vega_black
 
 
-def implied_vol(F0, K, T, annuity, market_price,
-                                 flag="c", tol=1e-5, max_iter=100):
+def implied_vol(F0, K, T, annuity, market_price, flag="c", tol=1e-5, max_iter=100):
     sigma = 0.20  # initial guess
     for _ in range(max_iter):
-        core_price = black76(flag, F0, K, T, 0.0, sigma) # r=0, discount via annuity
+        core_price = black76(flag, F0, K, T, 0.0, sigma) # r=0 implies discounting via annuity
         swaption_price = annuity * core_price                         
         diff = swaption_price - market_price
         if abs(diff) < tol:
@@ -20,7 +19,7 @@ def implied_vol(F0, K, T, annuity, market_price,
     return sigma
 
 T = 3.0 / 12.0 # option expiry in years
-csv_path = r"Chapter 5\implied_vol_computation\data\pca_1Y3M_implied_volatility.csv"
+csv_path = r"Chapter 5\implied_volatility_computation\data\pca_1Y3M_implied_volatility.csv"
 
 df = pd.read_csv(csv_path)
 df.columns = [c.strip() for c in df.columns]  
