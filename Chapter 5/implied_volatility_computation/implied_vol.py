@@ -21,8 +21,8 @@ def implied_vol(F0, K, T, annuity, market_price, flag="c", tol=1e-5, max_iter=10
 
 T = 3.0 / 12.0 # option expiry
 
-pca_path   = r"Chapter 5\implied_volatility_computation\data\pca_1Y3M_implied_volatility.csv"
-libor_path = r"Chapter 5\bloomberg_data\LIBOR_swaption_1Y3M.csv"
+pca_path   = r"Chapter 5\implied_volatility_computation\data\vae_20Y25Y_implied_volatility.csv"
+libor_path = r"Chapter 5\bloomberg_data\LIBOR_swaption_20Y25Y.csv"
 
 df_model = pd.read_csv(pca_path)
 df_model.columns = [c.strip() for c in df_model.columns]
@@ -48,13 +48,20 @@ df = df.sort_values("t")
 DPI = 100
 W_IN, H_IN = 1573 / DPI, 750 / DPI
 
+TICK_FS = 27
 fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
-ax.plot(df["t"], df["implied_vol"], marker="o", label="Model implied vol")
+ax.plot(df["t"], df["implied_vol"], marker="o", label="VAE implied vol")
 ax.plot(df["t"], df["mkt_implied_vol"], marker="x", linestyle="--", label="Market implied vol")
-ax.set_xlabel("Time t")
-ax.set_ylabel("Implied volatility")
-ax.set_title("1Y × 3M Swaption: Model vs Market Implied Volatility")
+ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
+ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
+ax.xaxis.get_offset_text().set_size(TICK_FS)
+ax.yaxis.get_offset_text().set_size(TICK_FS)
+ax.set_xlabel("Time t", fontsize=32)
+ax.set_ylabel("Implied volatility", fontsize=32)
+ax.set_title("20Y × 25Y Swaption", fontsize=37, fontweight="bold", pad=12)
 ax.grid(True)
-ax.legend()
+ax.legend(fontsize=24)
 plt.tight_layout()
+out_path = r"vae_vs_mkt_20Y25Y.png"
+plt.savefig(out_path, dpi=DPI, bbox_inches="tight")
 plt.show()
