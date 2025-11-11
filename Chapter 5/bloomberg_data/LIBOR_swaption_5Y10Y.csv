@@ -1,4 +1,4 @@
-t,mkt implied vol,strike,mkt price 
+t,mkt_implied_vol,strike,mkt_price
 1,0.1214,0.0646,0.031
 2,0.1462,0.0656,0.0326
 3,0.1434,0.0658,0.0325
