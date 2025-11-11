@@ -87,17 +87,15 @@ def swap_rate_computation(csv_path: str):
 
     return swap_mats, annuity_mats
 
-if __name__ == "__main__":
-    path = r"Chapter 5\swap_rate_computation\data\pca_simulated_rates_selected.csv"
-
-    # Ignore swap_mats, only keep annuity_mats
-    _, annuity_mats = swap_rate_computation(path)
-
-    print(f"Got {len(annuity_mats)} annuity matrices.")
-    print(f"Example shape: {annuity_mats[0].shape if annuity_mats else None}")
-
-    for i, A in enumerate(annuity_mats, start=1):
-        print(f"\n=== Timestamp {i} ===")
-        print("Annuity Matrix:")
+if __name__ == "__main__": 
+    path = r"Chapter 5\swap_rate_computation\data\pca_simulated_rates_selected.csv" 
+    swap_mats, annuity_mats = swap_rate_computation(path) 
+    print(f"Got {len(swap_mats)} swap matrices. Example shape: {swap_mats[0].shape if swap_mats else None}") 
+    print(f"Got {len(annuity_mats)} annuity matrices. Example shape: {annuity_mats[0].shape if annuity_mats else None}") 
+    for i, (M, A) in enumerate(zip(swap_mats, annuity_mats), start=1): 
+        print(f"\n=== Timestamp {i} ===") 
+        print("Swap Rate Matrix:") 
+        print(M) 
+        print("\nAnnuity Matrix:") 
         print(A)
 
