@@ -3,7 +3,7 @@ from py_vollib.black import black as black76
 from py_vollib.black.greeks.analytical import vega as vega_black
 
 
-def implied_vol_black76_swaption(F0, K, T, annuity, market_price,
+def implied_vol(F0, K, T, annuity, market_price,
                                  flag="c", tol=1e-5, max_iter=100):
     sigma = 0.20  # initial guess
     for _ in range(max_iter):
@@ -26,7 +26,7 @@ df = pd.read_csv(csv_path)
 df.columns = [c.strip() for c in df.columns]  
 
 df["implied_vol"] = df.apply(
-    lambda row: implied_vol_black76_swaption(
+    lambda row: implied_vol(
         F0=row["S_t"],
         K=row["strike"],
         T=T,

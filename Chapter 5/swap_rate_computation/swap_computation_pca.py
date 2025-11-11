@@ -24,8 +24,6 @@ def bond_price(Tgrid: np.ndarray, fwd_grid: np.ndarray):
 
 def swap_rate_computation(csv_path: str):
     """
-    Returns
-    -------
     swap_mats : list of np.ndarray
         Each with shape (19, 7). One swap-rate matrix per timestamp in the CSV.
     annuity_mats : list of np.ndarray
@@ -38,14 +36,7 @@ def swap_rate_computation(csv_path: str):
     order = np.argsort(Tgrid)
     Tgrid, tenor_cols = Tgrid[order], [tenor_cols[i] for i in order]
 
-    # 19 expiries
-    Expiry = np.array([
-        1/12, 3/12, 6/12, 9/12,
-        1, 2, 3, 4, 5, 6,
-        7, 8, 9, 10, 12, 15, 20, 25, 30
-    ], float)
-
-    # 7 tenors
+    Expiry = np.array([1/12, 3/12, 6/12, 9/12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30], float)
     Tenor = np.array([1, 2, 3, 5, 10, 20, 25], float)
 
     swap_mats = []
