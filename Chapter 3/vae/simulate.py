@@ -1,5 +1,6 @@
 import numpy as np, pandas as pd
 from pathlib import Path
+from scipy.stats import f as f_dist
 import matplotlib.pyplot as plt
 
 from utility_functions.utils import export_volatility, export_simul_fwd
@@ -17,7 +18,7 @@ def parse_tenor(s):
     s=str(s).strip().upper()
     return float(s[:-1])/12 if s.endswith("M") else (float(s[:-1]) if s.endswith("Y") else float(s))
 
-def vol_surface(fwd_csv, lat_csv, eps=EPS):
+def vol_surface(fwd_csv, lat_csv, eps=EPS, alpha=0.05):
     F = pd.read_csv(fwd_csv).sort_values("t")
     Z = pd.read_csv(lat_csv).sort_values("t")
     M = pd.merge(F, Z, on="t", how="inner")
@@ -28,7 +29,6 @@ def vol_surface(fwd_csv, lat_csv, eps=EPS):
     Xf = np.maximum(Xf, eps)
     logf = np.log(Xf)
 
-    # level per time = first tenor
     f0_t = Xf[:,0]
     Y    = logf - np.log(f0_t)[:,None]       # (T,N)
     Zm   = M[zcols].to_numpy(float)          # (T,3)
@@ -41,9 +41,31 @@ def vol_surface(fwd_csv, lat_csv, eps=EPS):
     F_hat = f0_t[:,None] * np.exp(Y_hat)      # (T,N)
     Sigma = F_hat[:,:,None] * Omega[None,:,:]# (T,N,3)
     print(Sigma.shape)
-
+    
+    # F statistics computation
+    E_hat = Y - Y_hat
+    
+    T_obs, N = Y.shape
+    P = Zm.shape[1]
+    
+    SSE_full = np.sum(E_hat**2, axis=0)
+    SSE_null = np.sum(Y**2, axis=0)
+    
+    df1 = P
+    df2 = T_obs - P
+    
+    num = (SSE_null - SSE_full) / df1
+    den = SSE_full / df2
+    F_stats = num / den
+    
+    p_vals = 1.0 - f_dist.cdf(F_stats, df1, df2)
+    
+    reject_pct = float(np.mean(p_vals <= alpha) * 100.0)
+    print(f"Percentage of tenors rejecting H0 at alpha={alpha}: "
+          f"{reject_pct:.2f}%")
+    
     taus = np.array([parse_tenor(x) for x in ten])
-    return F_hat, Xf, taus, Omega, Sigma, M["t"].to_numpy(), ten
+    return F_hat, Xf, taus, Omega, Sigma, M["t"].to_numpy(), ten, F_stats, p_vals, reject_pct
 
 def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
     """Load historical forward curves CSV and align rows by time and columns by tenor to match calibration."""
@@ -132,7 +154,7 @@ def simulation_plots(tgrid, hist, sim, labels, save_path="vae_fwd_rates_simulate
 
 if __name__=="__main__":
     # 1) Calibrate on VAE outputs (keeps simulation logic identical)
-    F_hat, F_hist_calib, taus, Omega, Sigma, times, ten = vol_surface(FWD, LAT)
+    F_hat, F_hist_calib, taus, Omega, Sigma, times, ten, F_stats, p_vals, reject_pct = vol_surface(FWD, LAT)
 
     # 2) Plot calibrated forward curves (fan)
     fwd_curves_plot(F_hat, taus, title="GBP Reconstructed Forward Curves")
