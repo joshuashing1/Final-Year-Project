@@ -62,6 +62,6 @@ ax.grid(True)
 ax.legend(fontsize=24)
 
 plt.tight_layout()
-out_path = r"vae_vs_mkt_20Y25Y_model.png"
+out_path = r"vae_vs_mkt_20Y25Y.png"
 plt.savefig(out_path, dpi=DPI, bbox_inches="tight")
 plt.show()
