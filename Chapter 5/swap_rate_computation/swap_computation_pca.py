@@ -89,4 +89,3 @@ if __name__ == "__main__":
         print(M) 
         print("\nAnnuity Matrix:") 
         print(A)
-

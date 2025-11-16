@@ -22,9 +22,9 @@ def implied_vol(F0, K, T, annuity, market_price, flag="c", tol=1e-5, max_iter=10
 
     return sigma if sigma >= 0 else np.nan
 
-T = 300.0 / 12.0  # option expiry (change accordingly)
+T = 3.0 / 12.0  # option expiry (change accordingly)
 
-pca_path = r"Chapter 5\implied_volatility_computation\data\vae_25Y20Y_implied_volatility.csv"
+pca_path = r"Chapter 5\implied_volatility_computation\data\pca_3M1Y_data.csv"
 
 df_model = pd.read_csv(pca_path)
 df_model.columns = [c.strip() for c in df_model.columns]
@@ -49,7 +49,7 @@ W_IN, H_IN = 1573 / DPI, 750 / DPI
 TICK_FS = 27
 fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
 
-ax.plot(df["t"], df["implied_vol"], marker="o", label="VAE implied vol")
+ax.plot(df["t"], df["implied_vol"], marker="o", label="PCA implied vol")
 
 ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
 ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
@@ -57,11 +57,11 @@ ax.xaxis.get_offset_text().set_size(TICK_FS)
 ax.yaxis.get_offset_text().set_size(TICK_FS)
 ax.set_xlabel("Time t", fontsize=32)
 ax.set_ylabel("Implied volatility", fontsize=32)
-ax.set_title("25Y × 20Y Swaption", fontsize=37, fontweight="bold", pad=12)
+ax.set_title("3M × 1Y Swaption", fontsize=37, fontweight="bold", pad=12)
 ax.grid(True)
 ax.legend(fontsize=24)
 
 plt.tight_layout()
-out_path = r"vae_25Y20Y.png"
+out_path = r"pca_3M1Y.png"
 plt.savefig(out_path, dpi=DPI, bbox_inches="tight")
 plt.show()
