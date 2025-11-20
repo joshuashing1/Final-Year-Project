@@ -10,25 +10,42 @@ class PCAFactors:
 
     @staticmethod
     def difference(hist_rates: np.ndarray, axis: int = 0) -> np.ndarray:
+        """
+        Conduct first differencing on the historical forward rates.
+        """
         if hist_rates.ndim != 2: raise ValueError("hist_rates must be 2D [n_time, n_tenor].")
         return np.diff(hist_rates, axis=axis)
 
     def covariance(self, diff_rates: np.ndarray) -> np.ndarray:
-        if diff_rates.ndim != 2: raise ValueError("diff_rates must be 2D.")
+        """
+        Computes the covariance matrix of the first differenced rates.
+        """
         sigma = np.cov(diff_rates.T)
         return sigma if self.annualize is None else sigma * float(self.annualize)
 
     def _eig(self, sigma: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Find eigendecomposition of a square matrix.
+        """
         vals, vecs = np.linalg.eig(sigma)
         return np.real_if_close(vals), np.real_if_close(vecs)
 
     def eigenvalues(self, sigma: np.ndarray) -> np.ndarray:
+        """
+        Get eigenvalues.
+        """
         return self._eig(sigma)[0]
 
     def eigenvectors(self, sigma: np.ndarray) -> np.ndarray:
+        """
+        Get eigenvectors.
+        """
         return self._eig(sigma)[1]
 
     def pca(self, sigma: np.ndarray, k: int | None = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Returns principal eigenpairs.
+        """
         k = self.k if k is None else k
         vals, vecs = self._eig(sigma)
         order = np.argsort(vals)[::-1]

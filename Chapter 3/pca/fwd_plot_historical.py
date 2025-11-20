@@ -1,3 +1,7 @@
+"""
+This Python script plots the historical forward curves of the GBP.
+"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -5,10 +9,15 @@ import matplotlib.pyplot as plt
 from utility_functions.utils import parse_tenor  
 
 def _assert_same_shape(t: np.ndarray, y: np.ndarray) -> None:
-    assert t.shape == y.shape, "Mismatching shapes of time and values"
+    """
+    Checking mismatch of shapes of time and values
+    """
+    assert t.shape == y.shape
 
 class LinearInterpolant:
-    """Piecewise-linear interpolant over (t, y) with flat extrapolation."""
+    """
+    Piecewise-linear interpolant over (t, y) with flat extrapolation.
+    """
     def __init__(self, t, y):
         t = np.asarray(t, dtype=float)
         y = np.asarray(y, dtype=float)
@@ -21,7 +30,9 @@ class LinearInterpolant:
         return np.interp(x, self.t, self.y, left=self.y[0], right=self.y[-1])
 
 def fwd_curves_plot(maturities_years, fitted_curves, title, save_path):
-    """2D plot of many forward/yield curves using a consistent publication style."""
+    """
+    2D plot of forward curves.
+    """
     x_min = float(np.nanmin(maturities_years))
     x_max = float(np.nanmax(maturities_years))
     x_grid = np.linspace(x_min, x_max, 300)
@@ -54,10 +65,7 @@ def fwd_curves_plot(maturities_years, fitted_curves, title, save_path):
 
 def fwd_curves_evolution(maturities_years, X, title, save_path, t_index=None):
     """
-    3D surface of forward rate history: z = f(t, T)
-    - maturities_years: 1D array of tenors (years), shape [n_tenors]
-    - X: matrix of forward rates with shape [n_times, n_tenors]
-    - t_index: optional time vector (length n_times); defaults to range(n_times)
+    3D surface of forward rate history.
     """
     X = np.asarray(X, dtype=float)
     n_times, n_tenors = X.shape
@@ -96,7 +104,6 @@ def fwd_curves_evolution(maturities_years, X, title, save_path, t_index=None):
     cbar = fig.colorbar(surf, shrink=0.8, aspect=24, pad=0.08)
     cbar.set_label("f(t, T)", fontsize=18)
 
-    # Optional z-limits (comment out if you want autoscale)
     zmin, zmax = np.nanmin(X), np.nanmax(X)
     ax.set_zlim(zmin, zmax)
 
