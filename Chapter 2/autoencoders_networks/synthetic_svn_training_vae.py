@@ -1,10 +1,12 @@
-import os, sys
+import sys
+from pathlib import Path
 import numpy as np
 
-THIS = os.path.abspath(os.path.dirname(__file__))            
-PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
-if PRJ_ROOT not in sys.path:
-    sys.path.insert(0, PRJ_ROOT)
+THIS = Path(__file__).resolve().parent
+PRJ_ROOT = THIS.parent
+
+if str(PRJ_ROOT) not in sys.path:
+    sys.path.insert(0, str(PRJ_ROOT))
 
 from machine_functions.autoencoder_variational import VariationalNN
 from parametric_models.machine_functions.svensson import SvenssonCurve
@@ -13,8 +15,8 @@ from utility_functions.utils import standardize_fit, standardize_apply
 def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ranges: dict, noise_std: float, seed: int
     ) -> np.ndarray:
     """
-    ranges keys: 'beta1','beta2','beta3','beta4','lambd1','lambd2' -> (low, high) tuples
-    Returns: X_syn with shape [n_samples, len(maturities_years)] in same units as real data (e.g., %).
+    generate synthetic Svensson curves using uniform distribution with range of the 1st and 3rd quartiles 
+    of fitted Svensson parameters.
     """
     rng = np.random.default_rng(seed)
     m = len(maturities_years)
@@ -37,9 +39,7 @@ def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ra
 
 def pretrain_on_synthetic(vae: VariationalNN, maturities_years: np.ndarray, syn_cfg: dict, verbose: bool = True):
     """
-    Pre-train AE on synthetic Svensson curves (standardized on synthetic stats).
-    syn_cfg has:
-      - n_samples, ranges (dict), epochs, batch_size, lr, noise_std, seed
+    Pre-train VAE network on synthetic Svensson curves with standardization.
     """
     X_syn = generate_synthetic_svensson(
         n_samples=syn_cfg["n_samples"],
