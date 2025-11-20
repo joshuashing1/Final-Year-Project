@@ -1,3 +1,7 @@
+"""
+Calibrate Svensson model using grid-search methodology.
+"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,7 +20,6 @@ def parse_maturities(labels):
         elif s.endswith('Y'):
             out.append(float(s[:-1]))
         else:
-            # fallback: try as-is (already numeric years)
             out.append(float(s))
     return np.array(out, dtype=float)
 
@@ -67,18 +70,15 @@ def yield_curves_plot(maturities_years, fitted_curves, rmse_values, title, save_
     print(f"Saved figure to {save_path} with average RMSE {avg_rmse}")
 
 
-def rmse_radius_profile_from_surface(sse_grid: np.ndarray,
-                                     l1s: np.ndarray,
-                                     l2s: np.ndarray,
-                                     n_obs: int,
-                                     r_bins: np.ndarray,
-                                     agg: str = "min") -> np.ndarray:
-    """Collapse 2D (λ1,λ2) SSE grid to 1D RMSE vs radius bins (min or mean within each bin)."""
-    L1, L2 = np.meshgrid(l1s, l2s, indexing="ij")
+def l2_norm_lambd_vector(sse_grid: np.ndarray, lambd1s: np.ndarray, lambd2s: np.ndarray, n_obs: int, r_bins: np.ndarray, agg: str = "min") -> np.ndarray:
+    """
+    Compute L2 norm of lambd vector (λ1,λ2).
+    """
+    L1, L2 = np.meshgrid(lambd1s, lambd2s, indexing="ij")
     r = np.sqrt(L1**2 + L2**2)
     rmse = np.sqrt(sse_grid / float(n_obs))
 
-    r_idx = np.digitize(r.ravel(), r_bins) - 1  # 0..len(r_bins)-2
+    r_idx = np.digitize(r.ravel(), r_bins) - 1
     rmse_flat = rmse.ravel()
     prof = np.full(r_bins.size - 1, np.nan, dtype=float)
     for k in range(prof.size):
@@ -90,7 +90,7 @@ def rmse_radius_profile_from_surface(sse_grid: np.ndarray,
     return prof
 
 
-def plot_rmse_radius_heatmap(r_centers: np.ndarray, err_mat: np.ndarray, title: str, save_path: str):
+def plot_rmse_heatmap(r_centers: np.ndarray, err_mat: np.ndarray, title: str, save_path: str):
     fig, ax = plt.subplots(figsize=(11, 6))
     im = ax.imshow(
         err_mat,
@@ -112,7 +112,6 @@ def plot_rmse_radius_heatmap(r_centers: np.ndarray, err_mat: np.ndarray, title: 
     plt.savefig(save_path, dpi=200)
     plt.show()
     print(f"Saved heatmap to {save_path}")
-
 
 
 def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: float, lambd2_lo: float, lambd2_upp: float, n_grid1: int, n_grid2: int):
@@ -156,9 +155,7 @@ def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: f
             "rmse": rmse
         })
         
-        prof = rmse_radius_profile_from_surface(
-            sse_grid, l1s, l2s, n_obs=len(t), r_bins=r_bins, agg="min"  # or "mean"
-        )
+        prof = l2_norm_lambd_vector(sse_grid, l1s, l2s, n_obs=len(t), r_bins=r_bins, agg="min")
         radius_profiles.append(prof)
 
     out = pd.DataFrame(results)
@@ -173,7 +170,7 @@ def process_yield_csv(csv_path: str, title: str, lambd1_lo: float, lambd1_upp: f
     
     err_heatmap = np.vstack(radius_profiles)   
     heatmap_path = f"{title}_svn_lambda_radius_rmse_heatmap.png"
-    plot_rmse_radius_heatmap(r_centers, err_heatmap, title=title, save_path=heatmap_path)
+    plot_rmse_heatmap(r_centers, err_heatmap, title=title, save_path=heatmap_path)
 
 
 def main():

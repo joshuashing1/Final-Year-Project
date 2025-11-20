@@ -1,3 +1,7 @@
+"""
+Calibrate Nelson-Siegel model using grid-search methodology.
+"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,7 +20,6 @@ def parse_maturities(labels):
         elif s.endswith('Y'):
             out.append(float(s[:-1]))
         else:
-            # fallback: try as-is (already numeric years)
             out.append(float(s))
     return np.array(out, dtype=float)
 

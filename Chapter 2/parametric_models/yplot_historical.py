@@ -15,7 +15,6 @@ def parse_maturities(labels):
         elif s.endswith('Y'):
             out.append(float(s[:-1]))
         else:
-            # fallback: try as-is (already numeric years)
             out.append(float(s))
     return np.array(out, dtype=float)
 

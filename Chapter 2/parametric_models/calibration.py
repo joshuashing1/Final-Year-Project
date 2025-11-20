@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-
-"""Calibration methods for Nelson-Siegel and Svensson Models.
-See `calibrate_ns_ols` and `calibrate_svn_ols` for ordinary least squares
+"""Calibration methods for Nelson-Siegel and Svensson Models via ordinary least squares 
 (OLS) based methods.
 """
 
@@ -15,8 +12,8 @@ from parametric_models.machine_functions.nelson_siegel import NelsonSiegelCurve
 from parametric_models.machine_functions.svensson import SvenssonCurve
 
 def _assert_same_shape(t: np.ndarray, y: np.ndarray) -> None:
-    assert t.shape == y.shape, "Mismatching shapes of time and values"
-
+    """ Checking mismatch of shapes of time and values"""
+    assert t.shape == y.shape
 
 def betas_ns_ols(
     lambd: float, t: np.ndarray, y: np.ndarray
@@ -83,8 +80,8 @@ def calibrate_ns_grid(
 def betas_svn_ols(
     lambd: Tuple[float, float], t: np.ndarray, y: np.ndarray
 ) -> Tuple[SvenssonCurve, Any]:
-    """Calculate the best-fitting beta-values given lambd (= array of lambd1
-    and lambd2) for time-value pairs t and y and return a corresponding
+    """Calculate the best-fitting beta-values given lambd
+    for time-value pairs t and y and return a corresponding
     Svensson curve instance.
     """
     _assert_same_shape(t, y)
@@ -98,8 +95,7 @@ def betas_svn_ols(
 def errorfn_svn_ols(lambd: Tuple[float, float], t: np.ndarray, y: np.ndarray) -> float:
     """Sum of squares error function for a Svensson
     model and time-value pairs t and y. All betas are obtained
-    by ordinary least squares given lambd (= array of lambd1
-    and lambd2).
+    by ordinary least squares given lambd.
     """
     _assert_same_shape(t, y)
     curve, lstsq_res = betas_svn_ols(lambd, t, y)
