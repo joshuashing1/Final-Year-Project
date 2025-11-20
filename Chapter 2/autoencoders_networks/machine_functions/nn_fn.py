@@ -1,5 +1,14 @@
+"""
+This Python script documents a single fully connected NN layer,
+outlining the fundamentals such as activation functions and gradient computation.
+A generalised NN layer to be used for both VAE and AE networks.
+"""
+
 import numpy as np
 
+"""
+choices of activation functions
+"""
 def relu(x: float):
     return np.maximum(0, x)
 
@@ -26,7 +35,8 @@ def dsigmoid(x: float):
 class Dense:
     def __init__(self, in_dim: int, out_dim: int, activation=None, rng=None):
         """
-        activation fx.
+        Initialize various attributes of a NN layer including network's weights, biases,
+        1st and 2nd moment vectors for the Adams stochastic gradient optimizer.
         """
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -48,6 +58,9 @@ class Dense:
         self.z = None
 
     def forward(self, x):
+        """
+        Comnputation of the output of the layer
+        """
         self.x = x
         self.z = x @ self.W + self.b
         if self.activation == "relu":
@@ -62,6 +75,9 @@ class Dense:
             raise ValueError(f"Unknown activation: {self.activation}")
 
     def backward(self, grad_out):
+        """
+        Computation of gradients used in back propagation
+        """
         if self.activation == "relu":
             grad_z = grad_out * drelu(self.z)
         elif self.activation == "tanh":

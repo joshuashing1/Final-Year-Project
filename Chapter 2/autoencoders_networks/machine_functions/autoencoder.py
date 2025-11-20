@@ -1,13 +1,15 @@
+"""
+This Python script outlines the AE network architecture using some fundamentals of NN 
+defined in nn_fn.py.
+"""
+
 import numpy as np
 
 from machine_functions.nn_fn import Dense
 
 class AutoencoderNN:
     """
-    Encoder: param_in -> 30 -> 30 -> 13
-    Decoder: 13 -> 30 -> 30 -> param_in
-    All hidden activations = ReLU
-    Output layer = linear (for reconstruction with MSE).
+    AE network architecture consisting of nodes: 30 -> 30 -> 13 -> 30 -> 30
     """
     
     def __init__(self, param_in: int, activation: str, rng=None):
@@ -58,6 +60,9 @@ class AutoencoderNN:
             layer.b -= lr * mb_hat / (np.sqrt(vb_hat) + eps)
 
     def train(self, X, epochs: int, batch_size: int, lr: float, shuffle=True, verbose=True):
+        """
+        Train AE network with forward pass and Adams gradient optimizer.
+        """
         X = X.astype(np.float32, copy=False)
         n = len(X); t = 0
         epoch_losses = []

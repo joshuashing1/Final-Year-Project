@@ -1,4 +1,8 @@
-# autoencoder_variational.py
+"""
+This Python script outlines the VAE network architecture using some fundamentals of NN 
+defined in nn_fn.py.
+"""
+
 import numpy as np
 from typing import List
 
@@ -7,21 +11,10 @@ from machine_functions.nn_fn import Dense
 
 class VariationalNN:
     """
-    Variational Autoencoder (NumPy) — mean-field with log_std parameterization.
-
-    Encoder trunk:  param_in -> 30 -> 30 -> 13
-    Heads:          top(13) -> mu(latent_dim), top(13) -> log_std(latent_dim)
-    Decoder:        latent_dim -> 30 -> 30 -> param_in
-
-    Reparameterization: z = mu + exp(log_std) * eps
-    Loss (per batch):   total = recon_MSE + beta_kld * KLD
-                        KLD(q||p) = 0.5 * sum(mu^2 + exp(2*log_std) - 1 - 2*log_std)
-
-    Public API mirrors AutoencoderNN:
-      - encode / decode / forward
-      - loss_fn (returns MSE and dL/dpred)
-      - parameters / step_adam / train(..., beta_kld=1.0)
-      - get_latent / reconstruct / reconstruct_mean / reconstruct_mc_mean
+    VAE network architecture consisting of nodes: 30 -> 30 -> 13 -> 30 -> 30
+    Reparameterization eqn: z = μ + exp(log σ) * eps
+    Latent dimension: 2
+    Monte-carlo samples: 2 to 5 
     """
 
     def __init__(self, param_in: int, activation: str, latent_dim: int, rng=None):
@@ -30,29 +23,25 @@ class VariationalNN:
         self.latent_dim = int(latent_dim)
         self.rng = np.random.default_rng(0) if rng is None else rng
 
-        # ---- encoder trunk ----
         self.encoder1 = Dense(self.param_in, 30, activation=self.activation, rng=self.rng)
         self.encoder2 = Dense(30, 30, activation=self.activation, rng=self.rng)
         self.encoder3 = Dense(30, 13, activation=self.activation, rng=self.rng)
 
-        # heads for μ and log σ
         self.mu_head     = Dense(13, self.latent_dim, activation=None, rng=self.rng)
         self.logstd_head = Dense(13, self.latent_dim, activation=None, rng=self.rng)
 
-        # ---- decoder ----
         self.decoder1 = Dense(self.latent_dim, 30, activation=self.activation, rng=self.rng)
         self.decoder2 = Dense(30, 30, activation=self.activation, rng=self.rng)
         self.out      = Dense(30, self.param_in, activation=None, rng=self.rng)
 
-    # ---------- encode / decode / forward ----------
     def _encode_hidden(self, x: np.ndarray) -> np.ndarray:
-        h = self.encoder1.forward(x)
+        h = self.encoder1.forward(x) # forward pass
         h = self.encoder2.forward(h)
         h = self.encoder3.forward(h)
         return h
 
     def encode(self, x: np.ndarray):
-        """Return (mu, log_std)."""
+        """Return parameters μ, log σ of tractable distribution"""
         h = self._encode_hidden(x.astype(np.float32, copy=False))
         mu = self.mu_head.forward(h)
         log_std = self.logstd_head.forward(h)
@@ -64,7 +53,7 @@ class VariationalNN:
         return self.out.forward(h)
 
     def forward(self, x: np.ndarray):
-        """Single-sample stochastic forward."""
+        """Generate latent variables for Monte-Carlo sampling"""
         mu, log_std = self.encode(x)
         std = np.exp(log_std).astype(np.float32)
         eps = self.rng.normal(size=std.shape).astype(np.float32)
@@ -72,7 +61,6 @@ class VariationalNN:
         return self.decode(z)
 
     def loss_fn(self, pred: np.ndarray, y: np.ndarray):
-        """MSE and its gradient wrt pred (same signature/behavior as AutoencoderNN)."""
         diff = pred - y
         return float((diff * diff).mean()), (2.0 / len(y)) * diff
 
@@ -84,6 +72,9 @@ class VariationalNN:
         ]
 
     def step_adam(self, grads, lr, t, eta1=0.9, eta2=0.999, eps=1e-8):
+        """
+        Adam gradient optimizer with initialized exponential decay weights.
+        """
         for layer, (dW, db) in zip(self.parameters(), grads):
             layer.mW = eta1 * layer.mW + (1 - eta1) * dW
             layer.vW = eta2 * layer.vW + (1 - eta2) * (dW * dW)
@@ -106,8 +97,7 @@ class VariationalNN:
               shuffle=True, verbose=True, num_latent_samples: int = 1,
               beta_kld: float = 0.01):
         """
-        Train the VAE with ELBO = recon_MSE + beta_kld * KL.
-        - beta_kld scales BOTH the KL value in the total loss and its gradients.
+        Train VAE network with forward pass and Adams gradient optimizer.
         """
         X = X.astype(np.float32, copy=False)
         n = len(X); t = 0
