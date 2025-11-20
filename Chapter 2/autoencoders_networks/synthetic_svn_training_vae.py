@@ -15,7 +15,7 @@ from utility_functions.utils import standardize_fit, standardize_apply
 def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ranges: dict, noise_std: float, seed: int
     ) -> np.ndarray:
     """
-    generate synthetic Svensson curves using uniform distribution with range of the 1st and 3rd quartiles 
+    generate Svensson parameters from continuous uniform distribution on interval; 1st and 3rd quartiles 
     of fitted Svensson parameters.
     """
     rng = np.random.default_rng(seed)
@@ -39,7 +39,7 @@ def generate_synthetic_svensson(n_samples: int, maturities_years: np.ndarray, ra
 
 def pretrain_on_synthetic(vae: VariationalNN, maturities_years: np.ndarray, syn_cfg: dict, verbose: bool = True):
     """
-    Pre-train VAE network on synthetic Svensson curves with standardization.
+    Pre-train VAE network on synthetic Svensson curves with standardization applied.
     """
     X_syn = generate_synthetic_svensson(
         n_samples=syn_cfg["n_samples"],

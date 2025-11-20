@@ -1,18 +1,21 @@
-# yplot_vae.py
-import os, sys
+"""
+This Python script deals with the usage of the pre-trained VAE network to model the yield curves 
+of a single currency dataset. The pre-training of the network is done using the Svensson parameters 
+of its respective currency.
+"""
+
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
-THIS = os.path.abspath(os.path.dirname(__file__))
-PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
-if PRJ_ROOT not in sys.path:
-    sys.path.insert(0, PRJ_ROOT)
+THIS = Path(__file__).resolve().parent      
+PRJ_ROOT = THIS.parent                      
 
-from utility_functions.utils import (
-    parse_tenor,
-    standardize_fit, standardize_apply, standardize_inverse,
-    yield_curves_plot,
-)
+if str(PRJ_ROOT) not in sys.path:
+    sys.path.insert(0, str(PRJ_ROOT))
+
+from utility_functions.utils import parse_tenor, standardize_fit, standardize_apply, standardize_inverse, yield_curves_plot
 from machine_functions.autoencoder_variational import VariationalNN
 from synthetic_svn_training_vae import pretrain_on_synthetic
 from parametric_models.yplot_historical import LinearInterpolant
@@ -21,51 +24,47 @@ from parametric_models.yplot_historical import LinearInterpolant
 def process_yield_csv_vae(csv_path: str, title: str, epochs: int, batch_size: int, lr: float, activation: str, noise_std: float,
     latent_dim: int, num_latent_samples: int, save_latent: bool = True, pretrain: dict | None = None, kld_beta: float = 1.0, seed: int = 0,
 ):
+    """
+    Data processing of single currency dataset and the plotting of yield curves
+    from the pre-trained network
+    """
     rng = np.random.default_rng(seed)
 
-    # 1) Load perfectly rectangular CSV: header = tenor labels, rows = curves; no time column
-    df = pd.read_csv(csv_path, header=0)
-    tenor_labels = [str(c) for c in df.columns]                   # keep given order (already increasing)
+    df = pd.read_csv(csv_path, header=0) # load csv
+    tenor_labels = [str(c) for c in df.columns]                   
     maturities_years = np.array([parse_tenor(c) for c in tenor_labels], dtype=float)
 
-    # 2) Dense matrix (complete grid)
-    X = df.to_numpy(dtype=np.float32)                              # shape [n_obs, n_tenors]
+    X = df.to_numpy(dtype=np.float32) # create dense matrix
     n_obs, n_tenors = X.shape
+    T = np.arange(n_obs, dtype=np.int32)
     print(f"[{title}] Loaded {n_obs} rows with {n_tenors} tenors from '{csv_path}'.")
 
-    # Integer time index for convenience
-    T = np.arange(n_obs, dtype=np.int32)
-
-    # 3) VAE
+    # call network
     vae = VariationalNN(param_in=n_tenors, activation=activation, latent_dim=latent_dim, rng=rng)
 
-    # 4) Optional pretrain on synthetic Svensson curves
     if pretrain is not None:
         pretrain_on_synthetic(vae, maturities_years, pretrain, verbose=True)
-
-    # 5) Standardize + optional denoising noise for fine-tuning
     mu_real, sd_real = standardize_fit(X)
     Xz_real = standardize_apply(X, mu_real, sd_real)
-    X_train = Xz_real + rng.normal(0.0, noise_std, size=Xz_real.shape).astype(np.float32) if noise_std > 0 else Xz_real
+    if noise_std > 0:
+        X_train = Xz_real + rng.normal(0.0, noise_std, size=Xz_real.shape).astype(np.float32) 
+    else: 
+        X_train = Xz_real
 
-    # Train VAE
+    # train network on synthetic Svensson curves and reconstrucy yield of input currency data
     vae.train(X=X_train, epochs=epochs, batch_size=batch_size, lr=lr, shuffle=True, verbose=True, num_latent_samples=num_latent_samples, beta_kld=kld_beta)
-
-    # 6) Always MC-mean decode at evaluation time
     Zhat = vae.reconstruct_mc_mean(Xz_real, num_latent_samples=num_latent_samples)
     X_smooth = standardize_inverse(Zhat.astype(np.float32), mu_real, sd_real)
-
-    # 7) RMSE on full grid (matrix is complete)
     avg_rmse = float(np.sqrt(np.mean((X_smooth - X) ** 2)))
     print(f"[{title}] VAE fit average RMSE on full grid: {avg_rmse:.6f}")
 
-    # 8) Save smoothed CSV (same header)
+    # out reconstructed yield
     out_df = pd.DataFrame(X_smooth, columns=tenor_labels)
     out_csv = f"{title}_vae_yield_reconstructed.csv"
     out_df.to_csv(out_csv, index=False)
     print(f"[{title}] Saved smoothed CSV to {out_csv}")
 
-    # 9) Save latent means (posterior μ)
+    # save VAE latent variables
     if save_latent:
         lat_mu = vae.get_latent(Xz_real).astype(np.float32)       # mean of q(z|x)
         lat_df = pd.DataFrame(lat_mu, columns=[f"z{i+1}" for i in range(lat_mu.shape[1])])
@@ -74,7 +73,7 @@ def process_yield_csv_vae(csv_path: str, title: str, epochs: int, batch_size: in
         lat_df.to_csv(lat_csv, index=False)
         print(f"[{title}] Saved latent mean factors to {lat_csv}")
 
-    # 10) Plot smoothed curves (historical panel)
+    # historical plot
     fitted_curves = [LinearInterpolant(maturities_years, row) for row in X_smooth]
     fig_path = f"{title}_vae_curve.png"
     yield_curves_plot(maturities_years, fitted_curves, title=f"{title}", save_path=fig_path)
@@ -83,6 +82,7 @@ def process_yield_csv_vae(csv_path: str, title: str, epochs: int, batch_size: in
 
 
 def main():
+    # quartiles of Svensson parameters wrt. its currency
     svn_ranges = {
         "beta1":  (2.9778, 3.3357),
         "beta2":  (-3.1356, -2.6116),
@@ -92,7 +92,7 @@ def main():
         "lambd2": (1.4414, 2.0658),
     }
 
-    datasets = [{"csv_path": r"Chapter 2\data\SGS_Yield_Final.csv", "title": "SGD"}] # copy file path here
+    datasets = [{"csv_path": r"Chapter 2\data\SGS_Yield_Final.csv", "title": "SGD"}] # edit file path accordingly
 
     K = 5 # monte carlo samples for vae samples generation
 
