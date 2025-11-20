@@ -1,17 +1,24 @@
-import os, sys
+"""
+This Python script aims to parse the historical GBP forward data by using the VAE network to generate the
+time-dependent latent factors and to reconstruct the forward curves. These latent factors will then 
+be used to compute the local volatility used for the HJM simulation.
+"""
+
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
-THIS = os.path.abspath(os.path.dirname(__file__))
-PRJ_ROOT = os.path.abspath(os.path.join(THIS, ".."))
-if PRJ_ROOT not in sys.path:
-    sys.path.insert(0, PRJ_ROOT)
+THIS = Path(__file__).resolve().parent   
+PRJ_ROOT = THIS.parent                   
+
+if str(PRJ_ROOT) not in sys.path:
+    sys.path.insert(0, str(PRJ_ROOT))
 
 from utility_functions.utils import parse_tenor, standardize_params, standardize, standardize_inverse, hist_fwd_curves_plot
 from machine_functions.autoencoder_variational import VariationalNN
 
 class PolynomialInterpolator:
-    """Tiny wrapper around np.polyfit/np.polyval (coeffs in descending powers)."""
     def __init__(self, coeffs: np.ndarray):
         self.coeffs = np.asarray(coeffs, dtype=float)
 
@@ -23,16 +30,17 @@ class PolynomialInterpolator:
     def __call__(self, x):
         return np.polyval(self.coeffs, np.asarray(x, float))
 
-def _extract_tenor_matrix(df: pd.DataFrame):
-    """Return (X, tenor_labels, maturities_years, T). Drops a 'time' column if present."""
-    # Time index
+
+def generate_tenor_matrix(df: pd.DataFrame):
+    """
+    Returns a matrix representation of the historical GBP forward rates across the tenors.
+    """
     if "t" in df.columns:
         T = df["t"].to_numpy(dtype=np.int32)
         df = df.drop(columns=["t"])
     else:
         T = np.arange(len(df), dtype=np.int32)
 
-    # Keep only tenor columns and sort them numerically
     tenor_labels = list(df.columns)
     maturities_years = np.array([parse_tenor(c) for c in tenor_labels], dtype=float)
     order = np.argsort(maturities_years)
@@ -43,63 +51,49 @@ def _extract_tenor_matrix(df: pd.DataFrame):
     return X, tenor_labels, maturities_years, T
 
 
-def process_fwd_csv_vae(
-    csv_path: str,
-    title: str,
-    epochs: int,
-    batch_size: int,
-    lr: float,
-    activation: str,
-    noise_std: float,
-    latent_dim: int,
-    num_latent_samples: int,
-    save_latent: bool = True,
-    kld_beta: float = 1.0,
-    seed: int = 0,
-):
+def process_fwd_csv(csv_path: str, title: str, epochs: int, batch_size: int, lr: float, activation: str, noise_std: float, latent_dim: int,
+    num_latent_samples: int, save_latent: bool = True, kld_beta: float = 1.0, seed: int = 0):
+    """
+    Data processing of historical GBP forward dataset and the plotting of forward curves
+    from the pre-trained network.
+    """
     rng = np.random.default_rng(seed)
 
-    # 1) Load CSV and build tenor matrix (drop 'time')
     df = pd.read_csv(csv_path, header=0)
-    X, tenor_labels, maturities_years, T = _extract_tenor_matrix(df)
-
+    X, tenor_labels, maturities_years, T = generate_tenor_matrix(df)
     n_obs, n_tenors = X.shape
     print(f"[{title}] Loaded {n_obs} rows with {n_tenors} tenors from '{csv_path}'.")
 
-    # 2) VAE (no pre-training)
-    vae = VariationalNN(param_in=n_tenors, activation=activation,
-                        latent_dim=latent_dim, rng=rng)
+    # call network
+    vae = VariationalNN(param_in=n_tenors, activation=activation, latent_dim=latent_dim, rng=rng)
 
-    # 3) Standardize (+ optional denoising noise)
     mu_real, sd_real = standardize_params(X)
     Xz_real = standardize(X, mu_real, sd_real)
     X_train = (Xz_real + rng.normal(0.0, noise_std, size=Xz_real.shape).astype(np.float32)
                if noise_std > 0 else Xz_real)
 
-    # 4) Train
-    vae.train(X=X_train, epochs=epochs, batch_size=batch_size, lr=lr,
-              shuffle=True, verbose=True, num_latent_samples=num_latent_samples,
-              beta_kld=kld_beta)
-
-    # 5) Reconstruct (MC mean) and unstandardize
+    # train network using dataset of mini batch size of 64
+    vae.train(X=X_train, epochs=epochs, batch_size=batch_size, lr=lr, shuffle=True, verbose=True, 
+              num_latent_samples=num_latent_samples, beta_kld=kld_beta)
     Zhat = vae.reconstruct_mc_mean(Xz_real, num_latent_samples=num_latent_samples)
     X_smooth = standardize_inverse(Zhat.astype(np.float32), mu_real, sd_real)
-
     avg_rmse = float(np.sqrt(np.mean((X_smooth - X) ** 2)))
     print(f"[{title}] VAE fit average RMSE on full grid: {avg_rmse:.6f}")
 
-    recon_df = pd.DataFrame(X_smooth, columns=tenor_labels)
-    recon_df.insert(0, "t", T)  
-    recon_df.to_csv("vae_reconstructed_fwd_rates.csv", index=False)
+    # out reconstructed forward
+    out_df = pd.DataFrame(X_smooth, columns=tenor_labels)
+    out_df.insert(0, "t", T)  
+    out_df.to_csv("vae_reconstructed_fwd_rates.csv", index=False)
 
+    # save VAE latent variables
     if save_latent:
         lat_mu = vae.get_latent(Xz_real).astype(np.float32)
         lat_df = pd.DataFrame(lat_mu, columns=[f"z{i+1}" for i in range(lat_mu.shape[1])])
         lat_df.insert(0, "t", T)
         lat_df.to_csv(f"vae_fwd_latent_space.csv", index=False)
 
-    fitted_curves = [PolynomialInterpolator.fit(maturities_years, row, degree=3)
-                     for row in X_smooth]
+    # historical plot
+    fitted_curves = [PolynomialInterpolator.fit(maturities_years, row, degree=3) for row in X_smooth]
     fig_path = f"vae_reconstructed_fwd_curves.png"
     hist_fwd_curves_plot(maturities_years, fitted_curves, title=title, save_path=fig_path)
 
@@ -111,7 +105,7 @@ def main():
                  "title": "VAE generated forward curves"}]
     K = 5
     for item in datasets:
-        process_fwd_csv_vae(
+        process_fwd_csv(
             csv_path=item["csv_path"],
             title=item["title"],
             epochs=100,

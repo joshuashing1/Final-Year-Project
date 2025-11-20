@@ -1,3 +1,8 @@
+"""
+This Python script seeks to derive statistical inference of the simulated rates from both 
+PCA and VAE network methodologies. We use the Jarque Bera normality test and predictive RMSE.
+"""
+
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -23,12 +28,10 @@ assert np.array_equal(hist[TIME_COL].to_numpy(), vae[TIME_COL].to_numpy())
 tenors = [c for c in hist.columns if c != TIME_COL]
 assert tenors == list(pca.columns[1:]) == list(vae.columns[1:]), "Tenor columns mismatch."
 
-# increments (drop first row later to align horizons)
 hist_inc = hist[tenors].diff().iloc[1:].reset_index(drop=True)
 pca_inc  =  pca[tenors].diff().iloc[1:].reset_index(drop=True)
 vae_inc  =  vae[tenors].diff().iloc[1:].reset_index(drop=True)
 
-# levels aligned for RMSE
 hist_lvl = hist[tenors].iloc[1:].reset_index(drop=True)
 pca_lvl  =  pca[tenors].iloc[1:].reset_index(drop=True)
 vae_lvl  =  vae[tenors].iloc[1:].reset_index(drop=True)

@@ -1,3 +1,7 @@
+"""
+This Python script (blank) - I think tomorrow work on this description.
+"""
+
 import numpy as np, pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -18,6 +22,10 @@ def parse_tenor(s):
     return float(s[:-1])/12 if s.endswith("M") else (float(s[:-1]) if s.endswith("Y") else float(s))
 
 def vol_surface(fwd_csv, lat_csv, eps=EPS):
+    """
+    This function uses the log-linear ordinary least square (OLS) method to find the eigenvalues across time.
+    We then craft our volatility surface 
+    """
     F = pd.read_csv(fwd_csv).sort_values("t")
     Z = pd.read_csv(lat_csv).sort_values("t")
     M = pd.merge(F, Z, on="t", how="inner")
@@ -28,18 +36,16 @@ def vol_surface(fwd_csv, lat_csv, eps=EPS):
     Xf = np.maximum(Xf, eps)
     logf = np.log(Xf)
 
-    # level per time = first tenor
     f0_t = Xf[:,0]
-    Y    = logf - np.log(f0_t)[:,None]       # (T,N)
-    Zm   = M[zcols].to_numpy(float)          # (T,3)
+    Y    = logf - np.log(f0_t)[:,None]       
+    Zm   = M[zcols].to_numpy(float)          
 
-    # OLS across time for each tenor
-    Omega = np.linalg.lstsq(Zm, Y, rcond=None)[0].T  # (N,3)
+    Omega = np.linalg.lstsq(Zm, Y, rcond=None)[0].T
 
     # Reconstruct forward curves & vol surface
-    Y_hat = Zm @ Omega.T                     # (T,N)
-    F_hat = f0_t[:,None] * np.exp(Y_hat)      # (T,N)
-    Sigma = F_hat[:,:,None] * Omega[None,:,:]# (T,N,3)
+    Y_hat = Zm @ Omega.T                     
+    F_hat = f0_t[:,None] * np.exp(Y_hat)      
+    Sigma = F_hat[:,:,None] * Omega[None,:,:]
     print(Sigma.shape)
 
     taus = np.array([parse_tenor(x) for x in ten])
@@ -75,7 +81,7 @@ def drift_computation(Sigma_t, taus, deg=3):
         alpha += sigma_tau * integ_tau
     return alpha
 
-def simulate_path2(F_hat, Sigma, taus, rng_seed=RNG_SEED):
+def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
     """
     Euler–Maruyama with explicit Musiela shift:
         f_{t+dt}(τ) = f_t(τ) + [ α_HJM(t,τ) + ∂f/∂τ (t,τ) ] dt + Σ(t,τ) dW_t
@@ -141,7 +147,7 @@ if __name__=="__main__":
     X_hist = align_historical_forward_curves(HIST_FWD, times, ten)
 
     # 4) Simulate with calibrated Sigma (unchanged logic)
-    sim_full, Alpha = simulate_path2(F_hat, Sigma, taus)
+    sim_full, Alpha = simulate_path(F_hat, Sigma, taus)
     
     sigma_csv = export_volatility(Sigma, taus, TENOR_LABELS, DT, FWD.parent/"vae_dynamic_volatility.csv")
     simulated_fwd_csv = export_simul_fwd(sim_full, taus, TENOR_LABELS, DT, VAE_DIR / "vae_simulated_fwd_rates.csv")
