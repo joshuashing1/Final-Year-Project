@@ -1,28 +1,39 @@
+"""
+This Python script simulates the Hull-Sokol-White SDE using volatility
+derived from PCA methodology under P measure.
+"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 def parse_tenor(s: str) -> float:
+    """
+    Converts all tenors into years.
+    """
     s = s.strip().upper()
     if s.endswith("M"): return float(s[:-1]) / 12.0
     if s.endswith("Y"): return float(s[:-1])
     return float(s)
 
-def fit_poly_per_factor(T: np.ndarray, V: np.ndarray, degrees) -> list[np.ndarray]:
-    """Return list of coeff arrays (descending powers), one per factor."""
+def polynomial_fit_per_factor(T: np.ndarray, V: np.ndarray, degrees) -> list[np.ndarray]:
+    """
+    Conduct least squares polynomial fit of each factor's discretized volatility across the tenors.
+    """
     if isinstance(degrees, int): degrees = [degrees] * V.shape[1]
     elif len(degrees) == 1:     degrees = [degrees[0]] * V.shape[1]
     return [np.polyfit(T, V[:, i], deg) for i, deg in enumerate(degrees)]
 
 def eval_polys(coeff_list: list[np.ndarray], x: np.ndarray) -> np.ndarray:
-    """Stacked evaluation -> shape [len(x), k]."""
+    """
+    Evaluate the value of a polynomial given an input.
+    """
     x = np.asarray(x, float)
     return np.column_stack([np.polyval(c, x) for c in coeff_list])
 
-def drift_m_tau(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -> float:
+def drift_computation(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -> float:
     """
-    μ(t, τ) = Σ_k (∫_0^τ σ_k(u) du) * σ_k(τ),
-    where ∫ is evaluated numerically with np.trapz.
+    Compute the drift of the HSW SDE.
     """
     s = 0.0
     grid = np.linspace(0.0, tau, n_points)
@@ -32,22 +43,10 @@ def drift_m_tau(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -
         s += integral * np.polyval(c, tau)
     return float(s)
 
-def simulate_path3(
-    f0: np.ndarray,
-    tau: np.ndarray,
-    drift_vals: np.ndarray,
-    Sigma: np.ndarray,
-    tgrid: np.ndarray,
-    r_mean: float,
-    f_mean: np.ndarray,
-    seed: int = 123
-):
+def simulate_path(f0: np.ndarray, tau: np.ndarray, drift_vals: np.ndarray, Sigma: np.ndarray, tgrid: np.ndarray,
+    r_mean: float, f_mean: np.ndarray, seed: int = 123):
     """
-    Euler–Maruyama with Musiela shift.
-    Drift at time t: α(τ) + (r_t - f^Q(t, t+τ))/(t+τ) + ∂f/∂τ.
-    vols_at_tau: [N, K] volatility columns per factor evaluated at tau.
-    drift_vals: α(τ) vector (length N), time-homogeneous HJM drift from σ-polys.
-    r_series, fQ_series must be aligned to tgrid (same length).
+    Simulate forward rate pathwise using Euler–Maruyama process with Musiela shift with risk premium adjustment.
     """
     f = f0.copy()
     N, K = Sigma.shape
@@ -59,16 +58,11 @@ def simulate_path3(
     for it in range(1, len(tgrid)):
         t_prev = tgrid[it - 1]
         dt     = tgrid[it] - tgrid[it - 1]
-
         fprev  = f.copy()
         dfdtau = np.gradient(fprev, tau)
-
-        # Real-world correction term (componentwise over τ grid)
         risk_prem = (r_mean - f_mean) / np.maximum(t_prev + tau, eps)
-        
         z = rng.normal(size=K)
-        diffusion = Sigma @ (z * np.sqrt(dt))  # shape (N,)
-
+        diffusion = Sigma @ (z * np.sqrt(dt)) 
         f = fprev + (drift_vals + risk_prem + dfdtau) * dt + diffusion
         path[it] = f
     return path
@@ -76,31 +70,30 @@ def simulate_path3(
 LABELS = ['1M','6M','1.0Y','2.0Y','3.0Y','5.0Y','10.0Y','20.0Y','25.0Y']
 DAY2YR = 252.0
 
-# Q-measure forward surface (decimals), and historical short rate r_t (decimals)
+# Q-measure forward surface and historical short rate
 fQ_df   = pd.read_csv(r"Chapter 4\data\simulated_fwd_rates_Q_msr.csv").set_index("t").sort_index()
 rHist   = pd.read_csv(r"Chapter 4\data\short_rate.csv").set_index("t").sort_index()["r_t"]
 
-# Historical GBP forward rates (P data) in PERCENT -> convert to decimals
+# Historical GBP forward rates
 df_hist = pd.read_csv(r"Chapter 4\data\GLC_fwd_curve_raw.csv").set_index("t").sort_index() / 100.0
 
-# Volatility term-structures table: Tenor (Years), Vol1, Vol2, Vol3
+# Volatility term-structures csv
 vol_tab  = pd.read_csv(r"Chapter 4\data\discretized_volatility.csv")
 Tau_vol  = vol_tab["Tenor (Years)"].to_numpy(float)
 Vols_tab = vol_tab[["Vol1","Vol2","Vol3"]].to_numpy(float)
 
 labels    = LABELS
-pick_tau  = np.array([parse_tenor(x) for x in labels])  # the 9 kept tenors
-
+pick_tau  = np.array([parse_tenor(x) for x in labels])
 tmin, tmax = Tau_vol.min(), Tau_vol.max()
 
-coeff_list      = fit_poly_per_factor(Tau_vol, Vols_tab, degrees=[0, 3, 3])
-vols_at_labels  = eval_polys(coeff_list, pick_tau)  # [N, K]
-drift_at_labels = np.array([drift_m_tau(t, coeff_list) for t in pick_tau])
+coeff_list      = polynomial_fit_per_factor(Tau_vol, Vols_tab, degrees=[0, 3, 3]) # degree of polynomial for each factor
+vols_at_labels  = eval_polys(coeff_list, pick_tau) 
+drift_at_labels = np.array([drift_computation(t, coeff_list) for t in pick_tau])
 
 t   = fQ_df.index.intersection(rHist.index).intersection(df_hist.index)
-fQ_sel     = fQ_df.loc[t, labels].to_numpy(float)   # [T, N]
-r_sel      = rHist.loc[t].to_numpy(float)           # [T]
-hist_path  = df_hist.loc[t, labels].to_numpy(float) # [T, N]
+fQ_sel     = fQ_df.loc[t, labels].to_numpy(float)   
+r_sel      = rHist.loc[t].to_numpy(float)           
+hist_path  = df_hist.loc[t, labels].to_numpy(float)
 
 print("\nQ-measure forward rates parsed for each tenor (first few rows):")
 print(pd.DataFrame(fQ_sel, index=t, columns=labels).head())
@@ -108,7 +101,7 @@ print(pd.DataFrame(fQ_sel, index=t, columns=labels).head())
 timeline_years = (t.to_numpy(float) - t.min()) / DAY2YR
 
 r_mean = float(rHist.loc[t].mean())
-f_mean = df_hist.loc[t, labels].to_numpy(float).mean(axis=0) # take mean wrt time dimension
+f_mean = df_hist.loc[t, labels].to_numpy(float).mean(axis=0)
 
 DPI = 100
 W_IN = 1573 / DPI
@@ -133,7 +126,7 @@ plt.show()
 
 curve_spot_vec = fQ_sel[0] # initial forward curve
 
-sim_path = simulate_path3(
+sim_path = simulate_path(
     f0=curve_spot_vec,
     tau=pick_tau,
     drift_vals=drift_at_labels,

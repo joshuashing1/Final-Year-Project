@@ -11,17 +11,23 @@ from machine_functions.pca_fn import PCAFactors
 from utility_functions.utils import parse_tenor, export_simul_fwd
 
 def vols_from_pca(princ_eigval: np.ndarray, princ_comp: np.ndarray) -> np.ndarray:
-    """Discretized volatility functions derived from pca"""
+    """
+    Discretize volatility functions derived from pca.
+    """
     return np.asarray(princ_comp, float) * np.sqrt(np.asarray(princ_eigval, float))[None, :]
 
-def poly_fit_per_factor(T: np.ndarray, V: np.ndarray, degrees) -> list[np.ndarray]:
-    """Conduct least squares polynomial fit of each factor's discretized volatility across the tenors"""
+def polynomial_fit_per_factor(T: np.ndarray, V: np.ndarray, degrees) -> list[np.ndarray]:
+    """
+    Conduct least squares polynomial fit of each factor's discretized volatility across the tenors.
+    """
     if isinstance(degrees, int): degrees = [degrees] * V.shape[1]
     elif len(degrees) == 1:     degrees = [degrees[0]] * V.shape[1]
     return [np.polyfit(T, V[:, i], deg) for i, deg in enumerate(degrees)]
 
 def eval_polys(coeff_list: list[np.ndarray], x: np.ndarray) -> np.ndarray:
-    """Evaluate the value of a polynomial given an input"""
+    """
+    Evaluate the value of a polynomial given an input.
+    """
     x = np.asarray(x, float)
     return np.column_stack([np.polyval(c, x) for c in coeff_list])
 
@@ -108,7 +114,7 @@ fig.tight_layout()
 plt.savefig("discretized_volatility.png", dpi=DPI)
 plt.show()
 
-coeff_list = poly_fit_per_factor(Tau, vols, [0, 3, 3]) # degree of interpolant
+coeff_list = polynomial_fit_per_factor(Tau, vols, [0, 3, 3]) # degree of polynomial for each factor
 
 fig, axes = plt.subplots(1, len(coeff_list), figsize=(18, 6), dpi=DPI)
 if len(coeff_list) == 1: axes = [axes]
