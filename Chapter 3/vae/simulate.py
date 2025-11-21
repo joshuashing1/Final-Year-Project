@@ -1,5 +1,6 @@
 """
-This Python script (blank) - I think tomorrow work on this description.
+This Python script computes the dynamic volatility derived from 
+VAE latent factors and implements the HJM simulation using it.
 """
 
 import numpy as np, pandas as pd
@@ -18,18 +19,22 @@ EPS, ANNUALIZATION, DT, POLY_DEG, RNG_SEED = 1e-8, 252.0, 1/252.0, 3, 123
 TENOR_LABELS = ['1M','6M','1.0Y','2.0Y','3.0Y','5.0Y','10.0Y','20.0Y','25.0Y']
 
 def parse_tenor(s):
+    """
+    Converts all tenors into years.
+    """
     s=str(s).strip().upper()
     return float(s[:-1])/12 if s.endswith("M") else (float(s[:-1]) if s.endswith("Y") else float(s))
 
-def vol_surface(fwd_csv, lat_csv, eps=EPS):
+def vol_compute(fwd_csv, lat_csv, eps=EPS):
     """
-    This function uses the log-linear ordinary least square (OLS) method to find the eigenvalues across time.
-    We then craft our volatility surface 
+    This function uses log-linear ordinary least square (OLS) method to find 
+    the eigenvalues across time. We then compute our volatility surface at 
+    every time stamp t.
     """
     F = pd.read_csv(fwd_csv).sort_values("t")
     Z = pd.read_csv(lat_csv).sort_values("t")
     M = pd.merge(F, Z, on="t", how="inner")
-    ten   = [c for c in F.columns if c!="t"]
+    ten = [c for c in F.columns if c!="t"]
     zcols = [c for c in Z.columns if c!="t"]
 
     Xf = M[ten].to_numpy(float);  Xf = Xf/100 if Xf.max()>1 else Xf
@@ -37,22 +42,21 @@ def vol_surface(fwd_csv, lat_csv, eps=EPS):
     logf = np.log(Xf)
 
     f0_t = Xf[:,0]
-    Y    = logf - np.log(f0_t)[:,None]       
-    Zm   = M[zcols].to_numpy(float)          
+    Y = logf - np.log(f0_t)[:,None]       
+    Zm = M[zcols].to_numpy(float) # design matrix of the VAE latent factors          
 
     Omega = np.linalg.lstsq(Zm, Y, rcond=None)[0].T
-
-    # Reconstruct forward curves & vol surface
     Y_hat = Zm @ Omega.T                     
     F_hat = f0_t[:,None] * np.exp(Y_hat)      
-    Sigma = F_hat[:,:,None] * Omega[None,:,:]
+    Sigma = F_hat[:,:,None] * Omega[None,:,:] # compute volatility for each time t, tenor τ, factor p
     print(Sigma.shape)
 
     taus = np.array([parse_tenor(x) for x in ten])
     return F_hat, Xf, taus, Omega, Sigma, M["t"].to_numpy(), ten
 
-def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
-    """Load historical forward curves CSV and align rows by time and columns by tenor to match calibration."""
+def align_hist_fwd_rates(hist_csv, times_ref, ten_ref, eps=EPS):
+    """Load historical forward curves CSV and align time and tenor 
+    to match grid used in VAE calibration."""
     H = pd.read_csv(hist_csv).sort_values("t")
     H = pd.merge(pd.DataFrame({"t": times_ref}), H, on="t", how="inner")
     ten_hist = [c for c in H.columns if c!="t"]
@@ -61,7 +65,6 @@ def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
     Xh = Xh/100 if Xh.max()>1 else Xh
     Xh = np.maximum(Xh, eps)
 
-    # If some requested tenors are missing, pad with NaNs to preserve order
     if len(ten_use) != len(ten_ref):
         J = len(ten_ref)
         Xpad = np.full((len(H), J), np.nan, float)
@@ -72,6 +75,9 @@ def align_historical_forward_curves(hist_csv, times_ref, ten_ref, eps=EPS):
     return Xh
 
 def drift_computation(Sigma_t, taus, deg=3):
+    """
+    Please know this!
+    """
     N,P = Sigma_t.shape
     alpha = np.zeros(N)
     for p in range(P):
@@ -83,81 +89,88 @@ def drift_computation(Sigma_t, taus, deg=3):
 
 def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
     """
-    Euler–Maruyama with explicit Musiela shift:
-        f_{t+dt}(τ) = f_t(τ) + [ α_HJM(t,τ) + ∂f/∂τ (t,τ) ] dt + Σ(t,τ) dW_t
-    where α_HJM comes from drift_from_sigma(Sigma_t, taus, POLY_DEG)
-    and Σ(t,τ) is the tenor-by-factor vol surface.
+    Euler–Maruyama scheme with Musiela shift. We implement a dynamic 
+    VAE volatility point estimator for various tenors across all time.
     """
     rng = np.random.default_rng(rng_seed)
     T, N, P = Sigma.shape
     path = np.empty((T, N), float)
-    path[0] = F_hat[0]                     # initial curve
-    Alpha = np.empty((T-1, N), float)         # store α_HJM (optional)
+    path[0] = F_hat[0]                     
+    Alpha = np.empty((T-1, N), float)         
 
     for t in range(1, T):
-        fprev = path[t-1]                  # f(t-1, τ_•)
-        Sigma_curr = Sigma[t-1]             # (N, K)
-        alpha_hjm = drift_computation(Sigma_curr, taus, POLY_DEG)  # (N,)
-        dfdtau = np.gradient(fprev, taus)  # ∂f/∂τ at current curve, vectorized
-        dW = rng.normal(size=P) * np.sqrt(DT)   # (K,)
-        diffusion = Sigma_curr @ dW              # (N,)
+        fprev = path[t-1]                  
+        Sigma_current = Sigma[t-1]             
+        alpha_hjm = drift_computation(Sigma_current, taus, POLY_DEG)  
+        dfdtau = np.gradient(fprev, taus)  
+        dW = rng.normal(size=P) * np.sqrt(DT)   
+        diffusion = Sigma_current @ dW             
         Alpha[t-1] = alpha_hjm
         path[t] = fprev + (alpha_hjm + dfdtau) * DT + diffusion
 
     return path, Alpha
 
-def fwd_curves_plot(F, taus, title="Reconstructed forward curves", save_path="vae_reconstructed_fwd_curves.png"):
-    DPI, W_IN, H_IN = 100, 1573/100, 750/100
+if __name__ == "__main__":
+    F_hat, F_hist_calib, taus, Omega, Sigma, times, ten = vol_compute(FWD, LAT) # calculate volatility surface
+
+    DPI, W_IN, H_IN = 100, 1573 / 100, 750 / 100
     fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
-    for row in F: ax.plot(taus, row*100, lw=0.8, alpha=0.7)
+    for row in F_hat:
+        ax.plot(taus, row * 100.0, lw=0.8, alpha=0.7)
+
     TICK_FS = 27
     ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
     ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
-    ax.xaxis.get_offset_text().set_size(TICK_FS); ax.yaxis.get_offset_text().set_size(TICK_FS)
-    ax.set_xlabel("Maturity (Years)", fontsize=32); ax.set_ylabel("Interest Rate (%)", fontsize=32)
-    ax.set_title(title, fontsize=37, fontweight="bold", pad=12)
-    ax.set_xlim(left=0, right=float(np.nanmax(taus))); ax.set_ylim(-2, 10); ax.grid(alpha=0.3)
-    fig.tight_layout(); fig.savefig(save_path, dpi=200); plt.close(fig)
-    print(f"Saved figure to {save_path}"); return save_path
+    ax.xaxis.get_offset_text().set_size(TICK_FS)
+    ax.yaxis.get_offset_text().set_size(TICK_FS)
 
-def simulation_plots(tgrid, hist, sim, labels, save_path="vae_fwd_rates_simulated_curves.png"):
-    fig, axes = plt.subplots(3,3, figsize=(13,9), sharex=True); axes = axes.ravel()
-    for j, ax in enumerate(axes):
-        ax.plot(tgrid, hist[:,j], lw=1.6, label="Historical")
-        if j == 0:
-            ax.plot(tgrid, sim[:,j], lw=1.2, ls="--", color="red", label="no volatility")
-        else:
-            ax.plot(tgrid, sim[:,j], lw=1.2, ls="--", label="Simulated")
-        ax.set_title(labels[j], fontsize=13, fontweight='bold')
-        if j%3==0: ax.set_ylabel("f(t,T)")
-        if j//3==2: ax.set_xlabel("Time (years)")
-        ax.legend(fontsize=9); ax.grid(alpha=0.25)
-    fig.suptitle("Forward Rates: Simulated vs Historical", fontsize=16, fontweight='bold')
-    fig.tight_layout(rect=[0,0,1,0.96]); fig.savefig(save_path, dpi=150); plt.close(fig)
-    print(f"Saved plot to {save_path}")
+    ax.set_xlabel("Maturity (Years)", fontsize=32)
+    ax.set_ylabel("Interest Rate (%)", fontsize=32)
+    ax.set_title("GBP Reconstructed Forward Curves", fontsize=37, fontweight="bold", pad=12)
+    ax.set_xlim(left=0, right=float(np.nanmax(taus)))
+    ax.set_ylim(-2, 10)
+    ax.grid(alpha=0.3)
 
-if __name__=="__main__":
-    # 1) Calibrate on VAE outputs (keeps simulation logic identical)
-    F_hat, F_hist_calib, taus, Omega, Sigma, times, ten = vol_surface(FWD, LAT)
+    fig.tight_layout()
+    fig.savefig("vae_reconstructed_fwd_curves.png", dpi=200)
+    plt.close(fig)
+    print("Saved figure to vae_reconstructed_fwd_curves.png")
 
-    # 2) Plot calibrated forward curves (fan)
-    fwd_curves_plot(F_hat, taus, title="GBP Reconstructed Forward Curves")
+    X_hist = align_hist_fwd_rates(HIST_FWD, times, ten) # load historical GBP forward data 
 
-    # 3) Load REAL historical curves for plotting (aligned to calibration times & tenors)
-    X_hist = align_historical_forward_curves(HIST_FWD, times, ten)
+    sim_full, Alpha = simulate_path(F_hat, Sigma, taus) # simulate forward rates with dynamic volatility using HJM
 
-    # 4) Simulate with calibrated Sigma (unchanged logic)
-    sim_full, Alpha = simulate_path(F_hat, Sigma, taus)
-    
-    sigma_csv = export_volatility(Sigma, taus, TENOR_LABELS, DT, FWD.parent/"vae_dynamic_volatility.csv")
+    sigma_csv = export_volatility(Sigma, taus, TENOR_LABELS, DT, VAE_DIR / "vae_dynamic_volatility.csv")
     simulated_fwd_csv = export_simul_fwd(sim_full, taus, TENOR_LABELS, DT, VAE_DIR / "vae_simulated_fwd_rates.csv")
-    
-    # 5) Select the 9 labeled tenors and plot hist vs sim (hist now from HIST_FWD)
-    selected_tenors = np.array([parse_tenor(x) for x in TENOR_LABELS])
-    
-    idx = [int(np.where(np.isclose(taus, t))[0][0]) for t in selected_tenors]
-    hist_simul = X_hist[:, idx]   
-    sim_simul  = sim_full[:, idx]
 
+    selected_tenors = np.array([parse_tenor(x) for x in TENOR_LABELS]) # select tenors 1M, 6M,.., 20Y, 25Y for plotting
+    idx = [int(np.where(np.isclose(taus, t))[0][0]) for t in selected_tenors]
+
+    hist_simul = X_hist[:, idx]    
+    sim_simul  = sim_full[:, idx] 
     tgrid = np.arange(Sigma.shape[0]) * DT
-    simulation_plots(tgrid, hist_simul, sim_simul, TENOR_LABELS)
+    
+    fig, axes = plt.subplots(3, 3, figsize=(13, 9), sharex=True)
+    axes = axes.ravel()
+
+    for j, ax in enumerate(axes):
+        ax.plot(tgrid, hist_simul[:, j], lw=1.6, label="Historical")
+
+        if j == 0:
+            ax.plot(tgrid, sim_simul[:, j], lw=1.2, ls="--", color="red", label="no volatility")
+        else:
+            ax.plot(tgrid, sim_simul[:, j], lw=1.2, ls="--", label="Simulated")
+
+        ax.set_title(TENOR_LABELS[j], fontsize=13, fontweight="bold")
+        if j % 3 == 0:
+            ax.set_ylabel("f(t, T)")
+        if j // 3 == 2:
+            ax.set_xlabel("Time (years)")
+        ax.legend(fontsize=9)
+        ax.grid(alpha=0.25)
+
+    fig.suptitle("Forward Rates: Simulated vs Historical", fontsize=16, fontweight="bold")
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.savefig("vae_fwd_rates_simulated_curves.png", dpi=150)
+    plt.close(fig)
+    print("Saved plot to vae_fwd_rates_simulated_curves.png")

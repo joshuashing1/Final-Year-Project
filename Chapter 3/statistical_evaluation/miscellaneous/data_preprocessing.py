@@ -1,5 +1,6 @@
 """
-Select the specific tenors of the simulated rates for easier statistical inference.
+This is a data preprocessing Python script that selects the specific tenors of the 
+simulated rates for easier statistical inference.
 """
 
 import pandas as pd
