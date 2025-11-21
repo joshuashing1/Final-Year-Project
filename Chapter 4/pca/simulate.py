@@ -67,91 +67,91 @@ def simulate_path(f0: np.ndarray, tau: np.ndarray, drift_vals: np.ndarray, Sigma
         path[it] = f
     return path
 
-LABELS = ['1M','6M','1.0Y','2.0Y','3.0Y','5.0Y','10.0Y','20.0Y','25.0Y']
-DAY2YR = 252.0
+TENOR_LABELS  = ['1M', '6M', '1.0Y', '2.0Y', '3.0Y', '5.0Y', '10.0Y', '20.0Y', '25.0Y']
+ANNUALIZATION = 252.0
 
-# Q-measure forward surface and historical short rate
-fQ_df   = pd.read_csv(r"Chapter 4\data\simulated_fwd_rates_Q_msr.csv").set_index("t").sort_index()
-rHist   = pd.read_csv(r"Chapter 4\data\short_rate.csv").set_index("t").sort_index()["r_t"]
+# simulated Q-measure forward surface and historical short rate
+fQ_df = pd.read_csv(r"Chapter 4\data\simulated_fwd_rates_Q_msr.csv").set_index("t").sort_index()
+rHist = pd.read_csv(r"Chapter 4\data\short_rate.csv").set_index("t").sort_index()["r_t"]
 
 # Historical GBP forward rates
 df_hist = pd.read_csv(r"Chapter 4\data\GLC_fwd_curve_raw.csv").set_index("t").sort_index() / 100.0
 
-# Volatility term-structures csv
-vol_tab  = pd.read_csv(r"Chapter 4\data\discretized_volatility.csv")
-Tau_vol  = vol_tab["Tenor (Years)"].to_numpy(float)
-Vols_tab = vol_tab[["Vol1","Vol2","Vol3"]].to_numpy(float)
+# Volatility term-structure (discretized from PCA)
+vol_tab = pd.read_csv(r"Chapter 4\data\discretized_volatility.csv")
+Tau_vol = vol_tab["Tenor (Years)"].to_numpy(float)
+Vols_tab = vol_tab[["Vol1", "Vol2", "Vol3"]].to_numpy(float)
 
-labels    = LABELS
-pick_tau  = np.array([parse_tenor(x) for x in labels])
-tmin, tmax = Tau_vol.min(), Tau_vol.max()
+selected_tenors_years = np.array([parse_tenor(x) for x in TENOR_LABELS])
 
-coeff_list      = polynomial_fit_per_factor(Tau_vol, Vols_tab, degrees=[0, 3, 3]) # degree of polynomial for each factor
-vols_at_labels  = eval_polys(coeff_list, pick_tau) 
-drift_at_labels = np.array([drift_computation(t, coeff_list) for t in pick_tau])
+# Fit a smooth polynomial over the volatility grid per factor 
+coeff_list = polynomial_fit_per_factor(Tau_vol, Vols_tab, degrees=[0, 3, 3])
+vols_at_labels  = eval_polys(coeff_list, selected_tenors_years)
+drift_at_labels = np.array([drift_computation(tau, coeff_list) for tau in selected_tenors_years])
 
-t   = fQ_df.index.intersection(rHist.index).intersection(df_hist.index)
-fQ_sel     = fQ_df.loc[t, labels].to_numpy(float)   
-r_sel      = rHist.loc[t].to_numpy(float)           
-hist_path  = df_hist.loc[t, labels].to_numpy(float)
+# align time indexes across datasets
+t = fQ_df.index.intersection(rHist.index).intersection(df_hist.index)
+
+fQ_sel = fQ_df.loc[t, TENOR_LABELS].to_numpy(float)     
+r_sel = rHist.loc[t].to_numpy(float)                   
+hist_path = df_hist.loc[t, TENOR_LABELS].to_numpy(float)   
 
 print("\nQ-measure forward rates parsed for each tenor (first few rows):")
-print(pd.DataFrame(fQ_sel, index=t, columns=labels).head())
+print(pd.DataFrame(fQ_sel, index=t, columns=TENOR_LABELS).head())
 
-timeline_years = (t.to_numpy(float) - t.min()) / DAY2YR
+timeline_years = (t.to_numpy(float) - t.min()) / ANNUALIZATION
 
-r_mean = float(rHist.loc[t].mean())
-f_mean = df_hist.loc[t, labels].to_numpy(float).mean(axis=0)
+# risk-premium parameters
+r_mean = float(r_sel.mean())
+f_mean = df_hist.loc[t, TENOR_LABELS].to_numpy(float).mean(axis=0)
 
-DPI = 100
+DPI  = 100
 W_IN = 1573 / DPI
 H_IN = 750  / DPI
 
 fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
 rHist.loc[t].plot(ax=ax, lw=1.5)
-ax.axhline(y=r_mean, linestyle=":", lw=2.0, color="green", label=fr"Mean $\overline{{r}}$ = {r_mean:.4f}")
-ax.set_title("Short Rate $r_t$ (historical)", fontsize=37, fontweight="bold")
+ax.axhline(y=r_mean, linestyle=":", lw=2.0, color="green",
+           label=fr"Mean $\overline{{r}}$ = {r_mean:.4f}")
+ax.legend(fontsize=20)
 
+ax.set_title("Short Rate $r_t$ (historical)", fontsize=37, fontweight="bold")
 TICK_FS = 27
 ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
 ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
 ax.xaxis.get_offset_text().set_size(TICK_FS)
 ax.yaxis.get_offset_text().set_size(TICK_FS)
-ax.set_xlabel("Time t (years)", fontsize=32)
+ax.set_xlabel("Time t (days)", fontsize=32)
 ax.set_ylabel(r"$r_t$", fontsize=32)
 ax.grid(True, alpha=0.3)
 fig.tight_layout()
 plt.savefig("short_rate.png", dpi=DPI)
 plt.show()
 
-curve_spot_vec = fQ_sel[0] # initial forward curve
+curve_spot_vec = fQ_sel[0]  # initial forward curve
 
-sim_path = simulate_path(
-    f0=curve_spot_vec,
-    tau=pick_tau,
-    drift_vals=drift_at_labels,
-    vols_at_tau=vols_at_labels,
-    tgrid=timeline_years,
-    r_mean=r_mean,
-    f_mean=f_mean,
-    seed=42
-)
+sim_path = simulate_path(f0=curve_spot_vec, tau=selected_tenors_years, drift_vals=drift_at_labels, Sigma=vols_at_labels, tgrid=timeline_years,
+    r_mean=r_mean, f_mean=f_mean, seed=42)
 
-out = pd.DataFrame(sim_path, index=t, columns=labels)
+out = pd.DataFrame(sim_path, index=t, columns=TENOR_LABELS)
 out.index.name = "t"
 out.to_csv("simulated_forward_P_measure.csv")
 
 fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharex=True)
-for j, ax in enumerate(axes.ravel()):
+axes = axes.ravel()
+
+for j, ax in enumerate(axes):
     ax.plot(timeline_years, hist_path[:, j], label="Historical", lw=1.5)
     ax.plot(timeline_years, sim_path[:, j],  label="Simulated", ls="--", lw=1.0)
-    ax.set_title(labels[j], fontsize=16, fontweight="bold")
+    ax.set_title(TENOR_LABELS[j], fontsize=16, fontweight="bold")
     ax.set_xlabel("Time t (years)", fontsize=14)
     ax.set_ylabel(r"$f(t, T)$", fontsize=14)
     ax.grid(True, alpha=0.3)
     ax.tick_params(axis="both", which="major", labelsize=12)
     ax.legend(fontsize=12)
-fig.suptitle("Forward Rates: Simulated vs Historical", fontsize=20, fontweight="bold", y=0.98)
+
+fig.suptitle("Forward Rates: Simulated vs Historical (P measure)", fontsize=20,
+             fontweight="bold", y=0.98)
 fig.tight_layout(rect=[0, 0, 1, 0.96])
 plt.savefig("fwd_rates_simulated_p.png", dpi=150)
 plt.show()
