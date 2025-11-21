@@ -44,24 +44,23 @@ def drift_computation(tau: float, coeff_list: list[np.ndarray], n_points: int = 
     return float(s)
 
 
-def simulate_path(f0, tau, drift_vals, Sigma, tgrid, seed=123):
+def simulate_path(f0: np.ndarray, tau: np.ndarray, drift_vals: np.ndarray, Sigma: np.ndarray, tgrid: np.ndarray, seed: int=123) -> np.ndarray:
     """
     Simulate forward rate pathwise using Euler–Maruyama process with Musiela shift.
     """
     f = f0.copy()
-    N, K = Sigma.shape
+    N, P = Sigma.shape
     path = np.empty((len(tgrid), N), float)
     path[0] = f
     rng = np.random.default_rng(seed)
 
-    for it in range(1, len(tgrid)):
-        dt = tgrid[it] - tgrid[it - 1]
+    for t in range(1, len(tgrid)):
+        dt = tgrid[t] - tgrid[t - 1]
         fprev = f.copy()
         dfdtau = np.gradient(fprev, tau)             
-        z = rng.normal(size=K)
-        diffusion = Sigma @ (z * np.sqrt(dt))   
+        diffusion = Sigma @ (rng.normal(size=P) * np.sqrt(dt))   
         f = fprev + (drift_vals + dfdtau) * dt + diffusion
-        path[it] = f
+        path[t] = f
     return path
 
 df = pd.read_csv(r"Chapter 3\data\GLC_fwd_curve_raw.csv")

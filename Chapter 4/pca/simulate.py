@@ -49,26 +49,24 @@ def simulate_path(f0: np.ndarray, tau: np.ndarray, drift_vals: np.ndarray, Sigma
     Simulate forward rate pathwise using Euler–Maruyama process with Musiela shift with risk premium adjustment.
     """
     f = f0.copy()
-    N, K = Sigma.shape
+    N, P = Sigma.shape
     path = np.empty((len(tgrid), N), float)
     path[0] = f
     rng = np.random.default_rng(seed)
     eps = 1e-12
 
-    for it in range(1, len(tgrid)):
-        t_prev = tgrid[it - 1]
-        dt     = tgrid[it] - tgrid[it - 1]
+    for t in range(1, len(tgrid)):
+        t_prev = tgrid[t - 1]
+        dt     = tgrid[t] - tgrid[t - 1]
         fprev  = f.copy()
         dfdtau = np.gradient(fprev, tau)
         risk_prem = (r_mean - f_mean) / np.maximum(t_prev + tau, eps)
-        z = rng.normal(size=K)
-        diffusion = Sigma @ (z * np.sqrt(dt)) 
+        diffusion = Sigma @ (rng.normal(size=P) * np.sqrt(dt)) 
         f = fprev + (drift_vals + risk_prem + dfdtau) * dt + diffusion
-        path[it] = f
+        path[t] = f
     return path
 
-TENOR_LABELS  = ['1M', '6M', '1.0Y', '2.0Y', '3.0Y', '5.0Y', '10.0Y', '20.0Y', '25.0Y']
-ANNUALIZATION = 252.0
+labels  = ['1M','6M','1.0Y','2.0Y','3.0Y','5.0Y','10.0Y','20.0Y','25.0Y']
 
 # simulated Q-measure forward surface and historical short rate
 fQ_df = pd.read_csv(r"Chapter 4\data\simulated_fwd_rates_Q_msr.csv").set_index("t").sort_index()
@@ -82,7 +80,7 @@ vol_tab = pd.read_csv(r"Chapter 4\data\discretized_volatility.csv")
 Tau_vol = vol_tab["Tenor (Years)"].to_numpy(float)
 Vols_tab = vol_tab[["Vol1", "Vol2", "Vol3"]].to_numpy(float)
 
-selected_tenors_years = np.array([parse_tenor(x) for x in TENOR_LABELS])
+selected_tenors_years = np.array([parse_tenor(x) for x in labels])
 
 # Fit a smooth polynomial over the volatility grid per factor 
 coeff_list = polynomial_fit_per_factor(Tau_vol, Vols_tab, degrees=[0, 3, 3])
@@ -92,18 +90,19 @@ drift_at_labels = np.array([drift_computation(tau, coeff_list) for tau in select
 # align time indexes across datasets
 t = fQ_df.index.intersection(rHist.index).intersection(df_hist.index)
 
-fQ_sel = fQ_df.loc[t, TENOR_LABELS].to_numpy(float)     
+fQ_sel = fQ_df.loc[t, labels].to_numpy(float)     
 r_sel = rHist.loc[t].to_numpy(float)                   
-hist_path = df_hist.loc[t, TENOR_LABELS].to_numpy(float)   
+hist_path = df_hist.loc[t, labels].to_numpy(float)   
 
 print("\nQ-measure forward rates parsed for each tenor (first few rows):")
-print(pd.DataFrame(fQ_sel, index=t, columns=TENOR_LABELS).head())
+print(pd.DataFrame(fQ_sel, index=t, columns=labels).head())
 
-timeline_years = (t.to_numpy(float) - t.min()) / ANNUALIZATION
+annualization = 252.0
+timeline_years = (t.to_numpy(float) - t.min()) / annualization
 
 # risk-premium parameters
 r_mean = float(r_sel.mean())
-f_mean = df_hist.loc[t, TENOR_LABELS].to_numpy(float).mean(axis=0)
+f_mean = df_hist.loc[t, labels].to_numpy(float).mean(axis=0)
 
 DPI  = 100
 W_IN = 1573 / DPI
@@ -128,12 +127,12 @@ fig.tight_layout()
 plt.savefig("short_rate.png", dpi=DPI)
 plt.show()
 
-curve_spot_vec = fQ_sel[0]  # initial forward curve
+curve_spot_vec = fQ_sel[0] # initial forward curve
 
 sim_path = simulate_path(f0=curve_spot_vec, tau=selected_tenors_years, drift_vals=drift_at_labels, Sigma=vols_at_labels, tgrid=timeline_years,
     r_mean=r_mean, f_mean=f_mean, seed=42)
 
-out = pd.DataFrame(sim_path, index=t, columns=TENOR_LABELS)
+out = pd.DataFrame(sim_path, index=t, columns=labels)
 out.index.name = "t"
 out.to_csv("simulated_forward_P_measure.csv")
 
@@ -143,7 +142,7 @@ axes = axes.ravel()
 for j, ax in enumerate(axes):
     ax.plot(timeline_years, hist_path[:, j], label="Historical", lw=1.5)
     ax.plot(timeline_years, sim_path[:, j],  label="Simulated", ls="--", lw=1.0)
-    ax.set_title(TENOR_LABELS[j], fontsize=16, fontweight="bold")
+    ax.set_title(labels[j], fontsize=16, fontweight="bold")
     ax.set_xlabel("Time t (years)", fontsize=14)
     ax.set_ylabel(r"$f(t, T)$", fontsize=14)
     ax.grid(True, alpha=0.3)

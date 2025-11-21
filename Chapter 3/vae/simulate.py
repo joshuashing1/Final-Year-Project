@@ -15,12 +15,14 @@ DATA_DIR = BASE / "data"
 FWD, LAT  = VAE_DIR/"vae_reconstructed_fwd_rates.csv", VAE_DIR/"vae_fwd_latent_space.csv"
 HIST_FWD  = DATA_DIR/"GLC_fwd_curve_raw.csv"
 
-def parse_tenor(s):
+def parse_tenor(s: str) -> float:
     """
     Converts all tenors into years.
     """
-    s=str(s).strip().upper()
-    return float(s[:-1])/12 if s.endswith("M") else (float(s[:-1]) if s.endswith("Y") else float(s))
+    s = s.strip().upper()
+    if s.endswith("M"): return float(s[:-1]) / 12.0
+    if s.endswith("Y"): return float(s[:-1])
+    return float(s)
 
 def vol_compute(fwd_csv: Path | str, lat_csv: Path | str, eps: float = 1e-8):
     """
