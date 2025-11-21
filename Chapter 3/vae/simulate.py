@@ -76,7 +76,7 @@ def align_hist_fwd_rates(hist_csv, times_ref, ten_ref, eps=EPS):
 
 def drift_computation(Sigma_t, taus, deg=3):
     """
-    Please know this!
+    Compute the drift of HJM SDE at every time stamp, t.
     """
     N,P = Sigma_t.shape
     alpha = np.zeros(N)

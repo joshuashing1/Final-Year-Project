@@ -25,7 +25,7 @@ def eval_polys(coeff_list: list[np.ndarray], x: np.ndarray) -> np.ndarray:
     x = np.asarray(x, float)
     return np.column_stack([np.polyval(c, x) for c in coeff_list])
 
-def drift_tau(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -> float:
+def drift_computation(tau: float, coeff_list: list[np.ndarray], n_points: int = 500) -> float:
     """
     Compute the drift of HJM SDE.
     """
@@ -124,7 +124,7 @@ plt.savefig("interpolated_volatility.png", dpi=DPI)
 plt.show()
 
 mc_tenors = np.linspace(0.0, 25.0, 51)
-mc_drift = np.array([drift_tau(tau, coeff_list) for tau in mc_tenors])
+mc_drift = np.array([drift_computation(tau, coeff_list) for tau in mc_tenors])
 
 curve_spot_vec = df.loc[df.index[0], labels].to_numpy(dtype=float)
 
@@ -132,7 +132,7 @@ label_to_tau  = pick_tau
 label_col_idx = [int(np.where(np.isclose(Tau, t))[0][0]) for t in label_to_tau]
 hist_path = df[labels].to_numpy(dtype=float)
 
-drift_at_labels = np.array([drift_tau(t, coeff_list) for t in label_to_tau])
+drift_at_labels = np.array([drift_computation(t, coeff_list) for t in label_to_tau])
 vols_at_labels  = eval_polys(coeff_list, label_to_tau)          
 
 timeline_years = np.arange(len(T)) / 252.0
