@@ -155,15 +155,12 @@ if __name__ == "__main__":
     
     fig, axes = plt.subplots(3, 3, figsize=(13, 9), sharex=True)
     axes = axes.ravel()
-
     for j, ax in enumerate(axes):
         ax.plot(tgrid, hist_simul[:, j], lw=1.6, label="Historical")
-
         if j == 0:
             ax.plot(tgrid, sim_simul[:, j], lw=1.2, ls="--", color="red", label="no volatility")
         else:
             ax.plot(tgrid, sim_simul[:, j], lw=1.2, ls="--", label="Simulated")
-
         ax.set_title(labels[j], fontsize=13, fontweight="bold")
         if j % 3 == 0:
             ax.set_ylabel("f(t, T)")
