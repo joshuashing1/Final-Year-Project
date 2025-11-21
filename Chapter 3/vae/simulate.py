@@ -15,9 +15,6 @@ DATA_DIR = BASE / "data"
 FWD, LAT  = VAE_DIR/"vae_reconstructed_fwd_rates.csv", VAE_DIR/"vae_fwd_latent_space.csv"
 HIST_FWD  = DATA_DIR/"GLC_fwd_curve_raw.csv"
 
-EPS, ANNUALIZATION, DT, POLY_DEG, RNG_SEED = 1e-8, 252.0, 1/252.0, 3, 123
-TENOR_LABELS = ['1M','6M','1.0Y','2.0Y','3.0Y','5.0Y','10.0Y','20.0Y','25.0Y']
-
 def parse_tenor(s):
     """
     Converts all tenors into years.
@@ -25,7 +22,7 @@ def parse_tenor(s):
     s=str(s).strip().upper()
     return float(s[:-1])/12 if s.endswith("M") else (float(s[:-1]) if s.endswith("Y") else float(s))
 
-def vol_compute(fwd_csv, lat_csv, eps=EPS):
+def vol_compute(fwd_csv: Path | str, lat_csv: Path | str, eps: float = 1e-8):
     """
     This function uses log-linear ordinary least square (OLS) method to find 
     the eigenvalues across time. We then compute our volatility surface at 
@@ -51,10 +48,10 @@ def vol_compute(fwd_csv, lat_csv, eps=EPS):
     Sigma = F_hat[:,:,None] * Omega[None,:,:] # compute volatility for each time t, tenor τ, factor p
     print(Sigma.shape)
 
-    taus = np.array([parse_tenor(x) for x in ten])
+    taus = np.array([parse_tenor(x) for x in ten], dtype = float)
     return F_hat, Xf, taus, Omega, Sigma, M["t"].to_numpy(), ten
 
-def align_hist_fwd_rates(hist_csv, times_ref, ten_ref, eps=EPS):
+def align_hist_fwd_rates(hist_csv: Path | str, times_ref: np.ndarray, ten_ref: list[str], eps: float = 1e-8) -> np.ndarray:
     """Load historical forward curves CSV and align time and tenor 
     to match grid used in VAE calibration."""
     H = pd.read_csv(hist_csv).sort_values("t")
@@ -74,7 +71,7 @@ def align_hist_fwd_rates(hist_csv, times_ref, ten_ref, eps=EPS):
         Xh = Xpad
     return Xh
 
-def drift_computation(Sigma_t, taus, deg=3):
+def drift_computation(Sigma_t: np.ndarray, taus: np.ndarray, deg: int = 3) -> np.ndarray:
     """
     Compute the drift of HJM SDE at every time stamp, t.
     """
@@ -87,27 +84,27 @@ def drift_computation(Sigma_t, taus, deg=3):
         alpha += sigma_tau * integ_tau
     return alpha
 
-def simulate_path(F_hat, Sigma, taus, rng_seed=RNG_SEED):
+def simulate_path(F_hat: np.ndarray, Sigma: np.ndarray, taus: np.ndarray, tgrid: np.ndarray, seed: int = 123):
     """
     Euler–Maruyama scheme with Musiela shift. We implement a dynamic 
     VAE volatility point estimator for various tenors across all time.
     """
-    rng = np.random.default_rng(rng_seed)
+    rng = np.random.default_rng(seed)
     T, N, P = Sigma.shape
     path = np.empty((T, N), float)
     path[0] = F_hat[0]                     
-    Alpha = np.empty((T-1, N), float)         
+    Alpha = np.empty((T - 1, N), float)         
 
     for t in range(1, T):
-        fprev = path[t-1]                  
-        Sigma_current = Sigma[t-1]             
-        alpha_hjm = drift_computation(Sigma_current, taus, POLY_DEG)  
-        dfdtau = np.gradient(fprev, taus)  
-        dW = rng.normal(size=P) * np.sqrt(DT)   
-        diffusion = Sigma_current @ dW             
-        Alpha[t-1] = alpha_hjm
-        path[t] = fprev + (alpha_hjm + dfdtau) * DT + diffusion
-
+        dt = tgrid[t] - tgrid[t - 1]
+        fprev = path[t - 1]
+        Sigma_current = Sigma[t - 1]
+        alpha_hjm = drift_computation(Sigma_current, taus, deg=3)
+        dfdtau = np.gradient(fprev, taus)
+        diffusion = Sigma_current @ (rng.normal(size=P) * np.sqrt(dt))
+        Alpha[t - 1] = alpha_hjm
+        path[t] = fprev + (alpha_hjm + dfdtau) * dt + diffusion
+        
     return path, Alpha
 
 if __name__ == "__main__":
@@ -136,19 +133,23 @@ if __name__ == "__main__":
     plt.close(fig)
     print("Saved figure to vae_reconstructed_fwd_curves.png")
 
-    X_hist = align_hist_fwd_rates(HIST_FWD, times, ten) # load historical GBP forward data 
+    X_hist = align_hist_fwd_rates(HIST_FWD, times, ten) # load historical GBP forward data
+    
+    annualization = 252.0
+    tgrid = np.arange(Sigma.shape[0]) / annualization
+    sim_full, Alpha = simulate_path(F_hat, Sigma, taus, tgrid, seed=123) # simulate forward rates with dynamic volatility using HJM
 
-    sim_full, Alpha = simulate_path(F_hat, Sigma, taus) # simulate forward rates with dynamic volatility using HJM
+    labels = ['1M', '6M', '1.0Y', '2.0Y', '3.0Y', '5.0Y', '10.0Y', '20.0Y', '25.0Y']
+    dt = tgrid[1] - tgrid[0] if len(tgrid) > 1 else 1.0 / annualization
 
-    sigma_csv = export_volatility(Sigma, taus, TENOR_LABELS, DT, VAE_DIR / "vae_dynamic_volatility.csv")
-    simulated_fwd_csv = export_simul_fwd(sim_full, taus, TENOR_LABELS, DT, VAE_DIR / "vae_simulated_fwd_rates.csv")
+    sigma_csv = export_volatility(Sigma, taus, labels, dt, VAE_DIR / "vae_dynamic_volatility.csv")
+    simulated_fwd_csv = export_simul_fwd(sim_full, taus, labels, dt, VAE_DIR / "vae_simulated_fwd_rates.csv")
 
-    selected_tenors = np.array([parse_tenor(x) for x in TENOR_LABELS]) # select tenors 1M, 6M,.., 20Y, 25Y for plotting
+    selected_tenors = np.array([parse_tenor(x) for x in labels]) # select tenors 1M, 6M,.., 20Y, 25Y for plotting
     idx = [int(np.where(np.isclose(taus, t))[0][0]) for t in selected_tenors]
 
     hist_simul = X_hist[:, idx]    
     sim_simul  = sim_full[:, idx] 
-    tgrid = np.arange(Sigma.shape[0]) * DT
     
     fig, axes = plt.subplots(3, 3, figsize=(13, 9), sharex=True)
     axes = axes.ravel()
@@ -161,7 +162,7 @@ if __name__ == "__main__":
         else:
             ax.plot(tgrid, sim_simul[:, j], lw=1.2, ls="--", label="Simulated")
 
-        ax.set_title(TENOR_LABELS[j], fontsize=13, fontweight="bold")
+        ax.set_title(labels[j], fontsize=13, fontweight="bold")
         if j % 3 == 0:
             ax.set_ylabel("f(t, T)")
         if j // 3 == 2:
