@@ -37,10 +37,7 @@ def bond_price(Tgrid: np.ndarray, fwd_grid: np.ndarray):
 
 def swap_rate_computation(csv_path: str):
     """
-    swap_mats : list of np.ndarray
-        Each with shape (19, 7). One swap-rate matrix per timestamp in the CSV.
-    annuity_mats : list of np.ndarray
-        Each with shape (19, 7). Matching Annuity matrix per timestamp.
+    Swap rate computation with expiry x tenors of swaption contract.
     """
     df = pd.read_csv(csv_path)
 
