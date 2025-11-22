@@ -20,7 +20,7 @@ def bond_price(Tgrid: np.ndarray, fwd_grid: np.ndarray):
     """
     Tgrid = np.asarray(Tgrid, float)
     fwd_grid = np.asarray(fwd_grid, float)
-    sorted_index = np.argsort(Tgrid); Tgrid, fwd_grid = Tgrid[sorted_index], fwd_grid[sorted_index]
+    sorted_idx = np.argsort(Tgrid); Tgrid, fwd_grid = Tgrid[sorted_idx], fwd_grid[sorted_idx]
 
     def P(T):
         T = np.atleast_1d(T).astype(float)

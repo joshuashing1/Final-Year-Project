@@ -1,10 +1,20 @@
+"""
+This Python script solves the Black-76 call formula for implied volatility using Newton-Raphson method.
+"""
+
+from typing import Union
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from py_vollib.black import black as black76
 from py_vollib.black.greeks.analytical import vega as vega_black
 
-def implied_vol(F0, K, T, annuity, market_price, flag="c", tol=1e-5, max_iter=100):
+def implied_vol(F0: float, K: float, T: float, annuity: float, market_price: float, 
+    flag: str="c", tol: float=1e-5, max_iter: int=100) -> float:
+    """
+    Implied volatility solver with built-in Newton-Raphson method to solve Black-76 call formula.
+    We multiply the Black-76 call formula with annuity to get the discounted Black-76.
+    """
     sigma = 0.20  # initial guess
     for _ in range(max_iter):
         core_price = black76(flag, F0, K, T, 0.0, sigma)  # r=0 implies discounting via annuity
@@ -29,8 +39,7 @@ pca_path = r"Chapter 5\implied_volatility_computation\data\pca_3M1Y_data.csv"
 df_model = pd.read_csv(pca_path)
 df_model.columns = [c.strip() for c in df_model.columns]
 
-df_model["implied_vol"] = df_model.apply(
-    lambda row: implied_vol(
+df_model["implied_vol"] = df_model.apply(lambda row: implied_vol(
         F0=row["S_t"],
         K=row["strike"],
         T=T,
