@@ -1,23 +1,36 @@
+"""
+This Python script derives the LIBOR swap rates using simulated rates derived from PCA methodology.
+"""
+
 import numpy as np, pandas as pd
 
 def parse_tenor(s: str) -> float:
-    s = str(s).strip().upper()
-    return float(s[:-1]) / 12 if s.endswith("M") else float(s[:-1]) if s.endswith("Y") else float(s)
+    """
+    Converts all tenors into years.
+    """
+    s = s.strip().upper()
+    if s.endswith("M"): return float(s[:-1]) / 12.0
+    if s.endswith("Y"): return float(s[:-1])
+    return float(s)
 
 def bond_price(Tgrid: np.ndarray, fwd_grid: np.ndarray):
+    """
+    Bond price computation using Musiela convention. We interpolate across various tenors and 
+    use integral to compute the bond price.
+    """
     Tgrid = np.asarray(Tgrid, float)
     fwd_grid = np.asarray(fwd_grid, float)
-    o = np.argsort(Tgrid); Tgrid, fwd_grid = Tgrid[o], fwd_grid[o]
+    sorted_index = np.argsort(Tgrid); Tgrid, fwd_grid = Tgrid[sorted_index], fwd_grid[sorted_index]
 
     def P(T):
         T = np.atleast_1d(T).astype(float)
 
         def one(z):
-            knots = np.r_[0.0, Tgrid[Tgrid < z], z]
-            vals  = np.interp(np.clip(knots, Tgrid[0], Tgrid[-1]), Tgrid, fwd_grid)
-            return np.exp(-np.trapz(vals, knots))
+            tenors_t = np.r_[0.0, Tgrid[Tgrid < z], z]
+            fwd_rate_t  = np.interp(np.clip(tenors_t, Tgrid[0], Tgrid[-1]), Tgrid, fwd_grid) # linear interpolation across the tenors
+            return np.exp(-np.trapz(fwd_rate_t, tenors_t))
 
-        out = np.fromiter((one(z) for z in T), float)
+        out = np.fromiter((one(z) for z in T), float) # out a numpy array of bond prices for varying maturities
         return out[0] if out.size == 1 else out
 
     return P
