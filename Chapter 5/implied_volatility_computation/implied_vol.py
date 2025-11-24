@@ -1,0 +1,76 @@
+"""
+This Python script solves the Black-76 call formula for implied volatility using Newton-Raphson method.
+"""
+
+from typing import Union
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from py_vollib.black import black as black76
+from py_vollib.black.greeks.analytical import vega as vega_black
+
+def implied_vol(F0: float, K: float, T: float, annuity: float, market_price: float, 
+    flag: str="c", tol: float=1e-5, max_iter: int=100) -> float:
+    """
+    Implied volatility solver with built-in Newton-Raphson method to solve Black-76 call formula.
+    We multiply the Black-76 call formula with annuity to get the discounted Black-76.
+    """
+    sigma = 0.20  # initial guess
+    for _ in range(max_iter):
+        core_price = black76(flag, F0, K, T, 0.0, sigma)  # r=0 implies discounting via annuity
+        swaption_price = annuity * core_price
+        diff = swaption_price - market_price
+        if abs(diff) < tol:
+            return sigma if sigma >= 0 else np.nan
+
+        v_core = vega_black(flag, F0, K, T, 0.0, sigma)
+        v_sigma = annuity * v_core * 100.0
+        if v_sigma == 0:
+            break
+
+        sigma -= diff / v_sigma
+
+    return sigma if sigma >= 0 else np.nan
+
+T = 3.0 / 12.0  # option expiry (change accordingly)
+
+pca_path = r"Chapter 5\implied_volatility_computation\data\pca_3M1Y_data.csv"
+
+df_model = pd.read_csv(pca_path)
+df_model.columns = [c.strip() for c in df_model.columns]
+
+df_model["implied_vol"] = df_model.apply(lambda row: implied_vol(
+        F0=row["S_t"],
+        K=row["strike"],
+        T=T,
+        annuity=row["annuity"],
+        market_price=row["mkt_price"],
+        flag="c"
+    ),
+    axis=1
+)
+
+df = df_model.sort_values("t")
+
+DPI = 100
+W_IN, H_IN = 1573 / DPI, 750 / DPI
+
+TICK_FS = 27
+fig, ax = plt.subplots(figsize=(W_IN, H_IN), dpi=DPI)
+
+ax.plot(df["t"], df["implied_vol"], marker="o", label="PCA implied vol")
+
+ax.tick_params(axis="both", which="major", labelsize=TICK_FS)
+ax.tick_params(axis="both", which="minor", labelsize=TICK_FS)
+ax.xaxis.get_offset_text().set_size(TICK_FS)
+ax.yaxis.get_offset_text().set_size(TICK_FS)
+ax.set_xlabel("Time t", fontsize=32)
+ax.set_ylabel("Implied volatility", fontsize=32)
+ax.set_title("3M × 1Y Swaption", fontsize=37, fontweight="bold", pad=12)
+ax.grid(True)
+ax.legend(fontsize=24)
+
+plt.tight_layout()
+out_path = r"pca_3M1Y.png"
+plt.savefig(out_path, dpi=DPI, bbox_inches="tight")
+plt.show()
